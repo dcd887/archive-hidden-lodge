@@ -1,0 +1,15 @@
+# Node modules
+node_modules/
+.DS_Store
+
+# Electron 资源（仅发布 HTML5 版）
+《档案·隐庐》游戏/
+_yinlu_app/
+_electron/
+
+# 发布包（如需可注释掉）
+yinlu_*.zip
+
+# Butler 脚本
+*.ps1
+*.bat
