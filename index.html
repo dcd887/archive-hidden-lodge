@@ -73,6 +73,7 @@
   .suspect:hover{ background:#f6f0dd;}
   .suspect .sname{ font-weight:bold; font-size:15px;}
   .suspect .srole{ font-size:12px; color:var(--dim); margin-top:2px;}
+  .suspect .spoint{ font-size:11px; color:#a08050; margin-top:1px; font-style:italic; line-height:1.4;}
   #ending{ margin:16px; padding:18px; border:1px solid var(--line); background:#fff; line-height:1.9; display:none;}
   #ending h3{ margin-top:0;}
   footer{ text-align:center; padding:10px; font-size:12px; color:var(--dim);}
@@ -457,7 +458,7 @@ C({
     {name:"赵文渊",role:"沈知白的研究生",truth:false,point:"选题被否有怨气，案发在图书馆有借阅记录，但无作案手段。"},
     {name:"顾明章",role:"案2嫌疑人，取保候审中",truth:false,point:"与沈通过话，但案发当晚有吴州高铁出站记录，不在场。"},
     {name:"林婉清",role:"图书管理员，沈的情人",truth:false,point:"供出“沈曾言有人要杀他”，但无作案的动机与手段。"},
-    {name:"王平凡",role:"后勤保洁组长（书吏的伪装）",truth:true,point:"断电窗口与其“在1层仓库”说辞矛盾，监控修复后行踪吻合。"}
+    {name:"王平凡",role:"后勤保洁组长",truth:true,point:"断电窗口与其“在1层仓库”说辞矛盾，监控修复后行踪吻合。"}
   ],
   kill:"王平凡",
   goodText:"真相：这不是自杀——是组织“沉璧”的清除者“书吏”所为。他以保洁组长王平凡的身份潜伏在校后勤，沈知白一旦公开那批“可能改写民国史的密电”，就会威胁到沉璧数十年的“纠正史述”大计。\n\n手法：10/8 晚 20:00 切断走廊监控电源（他有权开配电箱），20:30 捂住口鼻、一刀割断颈动脉，布置“抑郁自杀”；再故意把从警证物库盗出的 GX-07 笔帽搁进抽屉，企图把警方引向前两案——“跨案连环”。\n\n定罪链：<br>①遗书墨迹书写于约三天前（10/5），破碎“临终绝笔”；<br>②断电窗口精确覆盖 20:30，且为有权操作配电箱的内部人员；<br>③王平凡“在1层仓库”之说与5层保洁行踪矛盾；<br>④GX-07 笔帽跨案现身，坐实伪造。\n<br>王平凡落网。暗线全面浮现：钢笔中空、暗箱移证、跨案笔帽——沉璧的存在，已无可掩饰。",
@@ -471,7 +472,7 @@ C({
   brief:"2026年11月，案1中袁景行临死前委托出售的那枚唐代铜镜，出现在港屿拍卖行预展。铜镜背面铭文，实为“沉璧”成员的密语坐标。\n\n预展当晚，鉴定师陈柏年被发现死于仓库：头部遭铜制烛台多次击打，铜镜失窃。\n\n铜镜源出顾家旧藏——顾念慈赶来港屿，正是为追回祖物。而跨临江、蒲京、港三地的连环案，终于在此并轨。",
   dates:["10/20","10/25","10/28 20:00","10/28 22:00","10/29 发现","10/29 修复监控","11/1 跨案比对","11/3 移交记录","11/5 锁定身份","12月·引出案5"],
   events:["铜镜匿名寄达港屿拍卖行，委托人未露面","陈柏年发现背面铭文为密语，开始私下调查","陈柏年致电临江李警官，问询案1铜镜细节","书吏（宋守真，维修工扮相）用铜烛台灭口陈柏年，铜镜失窃，并将 GX-07 笔帽置于其口袋","港警发现铜镜失窃，监控捕捉到“维修工”侧脸","修复监控，确认侧脸清晰可见","修复比对：港维修工与蒲京保洁为同一人，跨省并案","笔帽移交记录发现签收栏空白——内部卧底","查明书吏真实身份＝前旧宫博物院研究员宋守真（流亡海外）","铜镜铭文坐标直指云泽镇旧宅——沉璧据点"],
-  golden:[{date:0,ev:0},{date:1,ev:1},{date:2,ev:2},{date:3,ev:3},{date:4,ev:4},{date:5,ev:5},{date:6,ev:6},{date:8,ev:8}],
+  golden:[{date:0,ev:0},{date:1,ev:1},{date:2,ev:2},{date:3,ev:3},{date:4,ev:4},{date:5,ev:5},{date:6,ev:6},{date:7,ev:7},{date:8,ev:8}],
   files:[
     {title:"文件一 · 铜镜高清拓片", desc:"铭文拓片与破译结果。",
      body:"【铜镜高清拓片】\n背面铭文经天干地支+经纬度双层破译，得到一组坐标，指向 云泽镇 旧宅。\n溯源：铜镜源出顾家旧藏，案前经“沉璧”牵线流入袁景行之手，袁景行急于脱手拟售予李维。\n结论：铭文为“沉璧”据点坐标。"},
@@ -521,7 +522,7 @@ C({
   ],
   suspects:[
     {name:"孟知远",role:"沉璧档案“版籍员”",truth:false,point:"被裹挟入库，不掌握首领身份与胶片去向，无杀人条件。"},
-    {name:"游守志",role:"文物鉴定泰斗 · 沉璧首领",truth:true,point:"承自父辈的“南迁”旧档即沉璧发端；亲临“封档销证”，灭口守库人秦有德。"},
+    {name:"游守志",role:"文物鉴定泰斗",truth:true,point:"承自父辈的“南迁”旧档即沉璧发端；亲临“封档销证”，灭口守库人秦有德。"},
     {name:"顾念慈",role:"主动作证的顾家后人",truth:false,point:"全程配合、协助辨认顾家暗线，无作案时间与动机。"},
     {name:"温素华",role:"云泽旧宅女管家",truth:false,point:"可出入库房，但无动机，无杀人凶器来源，其供词反而佐证首领亲临。"}
   ],
@@ -564,7 +565,7 @@ const HINTS = [
 const KEYWORDS = [
   ["袁景行","周明远","林薇","李维","赵永昌","座钟","腕表","电梯","停电","钢笔","毛毡","铜镜"],
   ["周远声","顾念慈","顾明章","刘大勇","穿衣镜","密室","黄铜镜框","高铁票","吴州","密电","望远镜"],
-  ["沈知白","赵文渊","王平凡","林婉清","顾明章","遗书","断电","配电箱","笔帽","GX-07","图书馆","笔帽"],
+  ["沈知白","赵文渊","王平凡","林婉清","顾明章","遗书","断电","配电箱","笔帽","GX-07","图书馆"],
   ["陈柏年","宋守真","顾念慈","贺展","铜镜","铭文","坐标","云泽镇","笔帽","移交","仓库","监控"],
   ["游守志","秦有德","孟知远","温素华","青铜镇纸","胶片","南迁","封档销证","灭口名单","微缩胶片","钢笔"]
 ];
@@ -950,7 +951,8 @@ function renderSuspects(){
   const c=CASES[cur]; const box=$("suspects"); box.innerHTML="";
   c.suspects.forEach(s=>{
     const d=document.createElement("div"); d.className="suspect";
-    d.innerHTML=`<div><div class="sname">${esc(s.name)}</div><div class="srole">${esc(s.role)}</div></div><button class="button" onclick="accuse('${s.name}')">指认</button>`;
+    let extra = s.point ? `<div class="spoint">${esc(s.point)}</div>` : "";
+    d.innerHTML=`<div><div class="sname">${esc(s.name)}</div><div class="srole">${esc(s.role)}</div>${extra}</div><button class="button" onclick="accuse(${esc(s.name)})">指认</button>`;
     box.appendChild(d);
   });
 }
@@ -1075,7 +1077,7 @@ function initDrawCanvas(){
   c.onpointercancel=()=>{ dDrawing=false; saveNoteDraw(); };
 }
 function posOf(c,e){ const r=c.getBoundingClientRect(); return { x:(e.clientX-r.left)*(c.width/r.width), y:(e.clientY-r.top)*(c.height/r.height) }; }
-function drawPoint(c,x,y){ const ctx=c.getContext("2d"); ctx.strokeStyle=dErase?"#ffffff":"#ffffff"; ctx.fillStyle=dErase?"#ffffff":dPen; ctx.lineWidth=dSize+2; ctx.beginPath(); ctx.arc(x,y,(dSize+2)/2,0,Math.PI*2); ctx.fill(); }
+function drawPoint(c,x,y){ const ctx=c.getContext("2d"); ctx.strokeStyle="#ffffff"; ctx.fillStyle=dErase?"#ffffff":dPen; ctx.lineWidth=dSize+2; ctx.beginPath(); ctx.arc(x,y,(dSize+2)/2,0,Math.PI*2); ctx.fill(); }
 function lineTo(c,x0,y0,x1,y1){ const ctx=c.getContext("2d"); ctx.strokeStyle=dErase?"#ffffff":dPen; ctx.lineWidth=dSize; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); }
 function drawClear(){
   if(!confirm("清空当前绘图笔记？")) return;
