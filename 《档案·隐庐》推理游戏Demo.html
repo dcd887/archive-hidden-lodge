@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>《档案·隐庐》推理游戏 Demo</title>
+<style>
+  :root{ --ink:#2b2b2b; --paper:#f2ecdd; --card:#fffdf4; --line:#c9c2ae; --accent:#8a3a2b; --ok:#2e7d52; --bad:#b23a2e; --dim:#7a7466;}
+  *{box-sizing:border-box;}
+  body{ margin:0; font-family:"Songti SC","SimSun","Microsoft YaHei",serif; background:#ded7c4; color:var(--ink);}
+  header{ background:#3e3629; color:#f2ecdd; padding:14px 22px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+  header h1{ margin:0; font-size:20px; letter-spacing:2px;}
+  header .meta{ font-size:12px; opacity:.85;}
+  .tabs{ display:flex; gap:6px; margin-top:6px;}
+  .tabbtn{ background:rgba(255,255,255,.08); color:#f2ecdd; border:1px solid rgba(255,255,255,.25); padding:6px 16px; cursor:pointer; font-size:14px; border-radius:3px;}
+  .tabbtn.active{ background:var(--accent); border-color:var(--accent); color:#fff;}
+  .tabbtn:disabled{ opacity:.4; cursor:not-allowed;}
+  main{ display:grid; grid-template-columns: 320px 1fr; gap:14px; padding:14px; max-width:1280px; margin:0 auto;}
+  .panel{ background:var(--card); border:1px solid var(--line); border-radius:4px; overflow:hidden; display:flex; flex-direction:column;}
+  .panel h2{ margin:0; padding:10px 14px; font-size:15px; background:#e8e1cd; border-bottom:1px solid var(--line);}
+  #searchbox{ margin:12px; }
+  #searchbox input{ width:100%; padding:9px 10px; font-size:14px; border:1px solid var(--line); border-radius:3px; background:#fff;}
+  #searchbox .hint{ font-size:11px; color:var(--dim); margin-top:6px;}
+  #docList{ padding:0 12px 12px; overflow:auto; flex:1;}
+  .doc{ border:1px solid var(--line); border-radius:3px; padding:9px 11px; margin-bottom:8px; cursor:pointer; background:#fff; }
+  .doc:hover{ background:#f6f0dd;}
+  .doc .t{ font-weight:bold; font-size:14px;}
+  .doc .d{ font-size:12px; color:var(--dim); margin-top:3px;}
+  .doc .m{ font-size:11px; color:var(--accent); margin-top:4px; display:none;}
+  .doc.searchhit{ border-color:var(--accent);}
+  .doc.searchhit .m{ display:block;}
+  #viewer{ flex:1; display:flex; flex-direction:column;}
+  #viewerHead{ padding:10px 14px; background:#e8e1cd; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;}
+  #viewerTitle{ font-weight:bold; font-size:15px;}
+  #viewerBody{ padding:16px 18px; line-height:1.85; font-size:15px; white-space:pre-wrap; flex:1; overflow:auto;}
+  mark{ background:#ffe08a; color:#000; padding:0 1px; border-radius:2px;}
+  .button{ background:var(--accent); color:#fff; border:none; padding:8px 18px; font-size:14px; border-radius:3px; cursor:pointer;}
+  .button:disabled{ background:#b8b2a0; cursor:not-allowed;}
+  .button.ghost{ background:transparent; color:var(--accent); border:1px solid var(--accent);}
+  /* timeline */
+  .progress{ padding:12px 14px; border-bottom:1px solid var(--line);}
+  .progress .bar{ height:12px; background:#e0d9c4; border-radius:6px; overflow:hidden; margin-top:6px;}
+  .progress .fill{ height:100%; background:var(--ok); width:0%; transition:width .3s;}
+  #timelinePanel{ grid-column:1 / -1; flex-direction:column;}
+  .slot{ display:grid; grid-template-columns: 180px 1fr 60px; gap:10px; align-items:center; padding:8px 14px; border-bottom:1px solid #eee;}
+  .slot label{ font-weight:bold; font-size:13px;}
+  .slot select{ padding:6px; font-size:13px; border:1px solid var(--line); border-radius:3px; background:#fff;}
+  .slot .st{ text-align:center; font-size:13px; font-weight:bold;}
+  .slot .st.ok{ color:var(--ok);}
+  .slot .st.no{ color:var(--bad);}
+  /* accuse */
+  .suspect{ display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center; padding:12px 14px; border-bottom:1px solid var(--line); cursor:pointer;}
+  .suspect:hover{ background:#f6f0dd;}
+  .suspect .sname{ font-weight:bold; font-size:15px;}
+  .suspect .srole{ font-size:12px; color:var(--dim); margin-top:2px;}
+  #ending{ margin:16px; padding:18px; border:1px solid var(--line); background:#fff; line-height:1.9; display:none;}
+  #ending h3{ margin-top:0;}
+  footer{ text-align:center; padding:10px; font-size:12px; color:var(--dim);}
+  @media(max-width:820px){ main{ grid-template-columns:1fr;} .slot{ grid-template-columns:1fr; gap:4px;} }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>《档案：隐庐》</h1>
+    <div class="meta">卷宗档案 · 文字推理 · 本格悬疑</div>
+  </div>
+  <div class="tabs">
+    <button class="tabbtn active" id="tabFile" onclick="switchTab('file')">档案阅读</button>
+    <button class="tabbtn" id="tabTime" onclick="switchTab('time')">时间线还原</button>
+    <button class="tabbtn" id="tabAccuse" onclick="switchTab('accuse')" disabled>指认真凶</button>
+  </div>
+</header>
+
+<main>
+  <!-- 档案区域 -->
+  <div class="panel" id="fileListPanel">
+    <h2>案件档案（6 份）</h2>
+    <div id="searchbox">
+      <input id="kw" type="text" placeholder="输入关键词检索（人名/日期/地点/物品）…" onkeydown="if(event.key==='Enter')doSearch()">
+      <button class="button" style="width:100%;margin-top:6px;" onclick="doSearch()">检索并高亮</button>
+      <div class="hint">例：袁景行 / 周明远 / 01:15 / 电梯 / 钢笔 / 停电 / 毛毡 / 8月29日</div>
+    </div>
+    <div id="docList"></div>
+  </div>
+
+  <!-- 阅读区域 -->
+  <div class="panel" id="viewerPanel">
+    <div id="viewerHead">
+      <span id="viewerTitle">选择左侧档案开始阅读</span>
+      <button class="button ghost" onclick="openNote('')">关闭</button>
+    </div>
+    <div id="viewerBody" style="color:var(--dim);font-style:italic;">点击档案列表中的任一份文件以阅读其完整内容。</div>
+  </div>
+
+  <!-- 时间线区域 -->
+  <div class="panel" id="timelinePanel" style="display:none;">
+    <h2>时间线还原</h2>
+    <div class="progress">
+      还原进度：<b id="tlBarText">0 / 8</b>
+      <div class="bar"><div class="fill" id="tlFill"></div></div>
+      <div style="font-size:12px;color:var(--dim);margin-top:6px;">
+        为每个时间槽分别选择【日期】与【事件】。全部 8 个槽位匹配正确后，时间线完整度达到 100%，即可进入指认阶段。
+      </div>
+    </div>
+    <div id="slots"></div>
+  </div>
+
+  <!-- 指认区域 -->
+  <div class="panel" id="accusePanel" style="display:none;">
+    <h2>指认阶段</h2>
+    <div style="font-size:13px;color:var(--dim);padding:6px 14px;">
+      时间线已还原完整。现在根据你掌握的物证，从四名嫌疑人中指认真正的凶手。
+    </div>
+    <div id="suspects"></div>
+    <div id="ending"></div>
+  </div>
+</main>
+
+<footer>《档案：隐庐》· Demo · 离线可玩 · 无需网络</footer>
+
+<script>
+/* ============ 档案数据 ============ */
+const DOCS = [
+  {
+    id:0, title:"文件一 · 死者日记·八月篇",
+    desc:"袁景行手写日记，皮质封面，最后数页有撕毁痕迹。",
+    body:
+"【死者日记·八月篇】\n\n"+
+"· 形式：袁景行手写日记本，皮质封面，最后数页有撕毁痕迹。\n"+
+"· 核心内容：\n"+
+"  8月27日：“那支笔又派上用场了。证据要握在自己手里。”\n"+
+"  8月28日：“搬运那面铜镜时把书房窗锁碰坏了，明天得叫人来修。”\n"+
+"  8月29日页（关键）：日期有明显涂改，原写“8月28日”后划去，改为“8月29日”。正文为：“周今晚来，得让他看看那座钟。”\n"+
+"· 笔迹鉴定结论：涂改及补写内容非袁景行笔迹，系另一人所写。与周明远字迹样本比对，吻合度极高。"
+  },
+  {
+    id:1, title:"文件二 · 林薇的邮件截图与噪音投诉记录",
+    desc:"手机截图打印件 + 物业投诉单复印件。",
+    body:
+"【林薇的邮件截图与噪音投诉记录】\n\n"+
+"· 形式：手机截图打印件 + 物业纸质投诉单复印件。\n"+
+"· 核心内容：\n"+
+"  投诉单：林薇于8月多次投诉袁家夜间重物拖拽、打磨声响。\n"+
+"  邮件截图：发送时间 2026年8月30日 00:45，发件人袁景行，内容为对长期噪音的正式道歉，措辞温和。\n"+
+"  证据价值：证明袁景行在此时间点仍存活且神志清醒，将死亡时间下限定格在00:45之后。"
+  },
+  {
+    id:2, title:"文件三 · 警方现场勘查笔录（初版）+ 钟表鉴定报告",
+    desc:"警方内部文件，附技术鉴定附件。",
+    body:
+"【警方现场勘查笔录（初版）+ 钟表鉴定报告】\n\n"+
+"· 形式：警方内部文件，附技术鉴定附件。\n"+
+"· 核心内容：\n"+
+"  书房古董座钟：指针停在1:15。经鉴定，该钟因摆锤被调整，走时慢15分钟，故其停摆的真实时间为1:30。\n"+
+"  死者腕表（自动机械）：指针停在2:00。鉴定报告指出，该表非因撞击自然停走，而是被人为调快约45分钟后因动力耗尽而停。\n"+
+"  书桌位置：与死者生前习惯位置有明显偏移（约20厘米），桌脚下有毛毡纤维残留。\n"+
+"  勘查员手写备注：“两钟时间不一致，已送检。”"
+  },
+  {
+    id:3, title:"文件四 · 赵永昌的值班日志与监控文字记录",
+    desc:"值班日志原件 + 警方调取的监控录像文字描述。",
+    body:
+"【赵永昌的值班日志与监控文字记录】\n\n"+
+"· 形式：值班日志原件 + 警方调取的监控录像文字描述。\n"+
+"· 核心内容：\n"+
+"  日志：“21:40 周明远离开电梯。”（赵永昌笔迹）\n"+
+"  监控记录：原始录像显示，21:35 电梯从3楼空载下行至1楼，21:40无人进出电梯。赵永昌的记录系其看手机时瞥见电梯运行后的主观误判。\n"+
+"  矛盾点：日志与录像不符，证明周明远的“离开”为假象。\n"+
+"  补充调查：警方查实周明远手机中安装了该品牌电梯的访客呼叫APP，其账号权限由赵永昌于两周前以“风水勘测”名义代为开通，未录入物业正式授权记录。"
+  },
+  {
+    id:4, title:"文件五 · 法医陈默的验尸补充报告",
+    desc:"正式法医鉴定文件，附温度、尸僵、胃内容物等数据。",
+    body:
+"【法医陈默的验尸补充报告】\n\n"+
+"· 形式：正式法医鉴定文件，附温度、尸僵、胃内容物等数据。\n"+
+"· 核心内容：\n"+
+"  精确死亡时间：8月30日凌晨01:15–01:20。\n"+
+"  致命伤特征：枕骨粉碎性骨折，脑干离断，瞬间致死，无任何挣扎或生存反应。\n"+
+"  死者右手呈抓握状，指甲缝内发现微量蓝色墨水，成分与“派克51”钢笔专用墨水一致。\n"+
+"  结论：右手抓握姿态符合死后被强制接触笔杆时刮蹭形成的痕迹。"
+  },
+  {
+    id:5, title:"文件六 · 赵永昌的便签纸",
+    desc:"从赵永昌衣柜中搜出的几张便签。",
+    body:
+"【赵永昌的便签纸】\n\n"+
+"· 形式：从赵永昌衣柜中搜出的几张便签。\n"+
+"· 核心内容：\n"+
+"  正面潦草记录了一笔挪用款项的数字。\n"+
+"  背面铅笔写着：“29日晚9点断电……好机会。”\n"+
+"  案件作用：此便签使赵永昌一度成为重点怀疑对象，但结合停电为公开通知且其无杀人胆量，其行为被定性为“意图趁停电潜入销毁账本”，而非预谋杀人。它是故事中重要的误导性线索。"
+  }
+];
+
+/* ============ 时间线数据 ============ */
+const DATES = ["8/29 09:00","8/29 20:00","8/29 21:00–21:30","8/29 21:35","8/29 21:40","8/30 00:45","8/30 01:15","8/30 01:20–01:35","8/30 09:00–09:20","8/30 11:35"];
+const EVENTS = [
+  "周明远喝茶调慢座钟，并观察到窗锁损坏",
+  "全楼停电，监控与电子钟表断电",
+  "电梯空载下行，制造“周明远离开”假象",
+  "周明远从检修通道潜入书房，藏入衣柜",
+  "袁景行发给林薇道歉邮件（存活下限）",
+  "周明远用青铜镇纸击杀袁景行",
+  "周明远伪造现场：调快腕表、涂改日记、摆布钢笔",
+  "周明远用毛毡垫脚完成书桌位移",
+  "李维用备用钥匙开门发现尸体并报警",
+  "周明远正常乘电梯离开公寓",
+  "赵永昌与李维合谋搬运铜镜分赃",
+  "书桌因撞击导致座钟停摆（伪造说）"
+];
+/* 每个槽位的正确答案（日期索引, 事件索引） */
+const GOLDEN = [
+  {date:1, ev:0},   // 8/29 20:00 喝茶调钟
+  {date:2, ev:1},   // 8/29 21:00-21:30 停电
+  {date:3, ev:2},   // 8/29 21:35 空梯
+  {date:4, ev:3},   // 8/29 21:40 潜入
+  {date:5, ev:4},   // 8/30 00:45 邮件
+  {date:6, ev:5},   // 8/30 01:15 行凶
+  {date:7, ev:6},   // 8/30 01:20-01:35 伪造现场
+  {date:8, ev:7}    // 8/30 09:00-09:20 毛毡移桌
+];
+
+/* ============ 嫌疑人数据 ============ */
+const SUSPECTS = [
+  {name:"周明远", role:"风水师，隐庐3楼住户", truth:true,
+   point:"亲密熟悉袁家书房，知晓停电时段与电梯权限，掌握窗锁损坏的物理条件。"},
+  {name:"林薇", role:"小提琴手，隐庐2楼住户", truth:false,
+   point:"提供邮件截图与声音证词，但邮件内容与案件无关。"},
+  {name:"李维", role:"房产中介，持公寓备用钥匙", truth:false,
+   point:"发现尸体前撒了5分钟的谎，但缺乏深夜进入现场的条件。"},
+  {name:"赵永昌", role:"物业经理，住地下室值班室", truth:false,
+   point:"有销毁账本的动机，便签纸疑似预谋，但无杀人胆量与时机。"}
+];
+
+/* ============ UI 状态 ============ */
+let currentView = "file";
+let searchQuery = "";
+let cleared = false; // 是否已进入结局
+let timelineDone = false; // 时间线是否已还原满分
+
+function switchTab(t){
+  currentView = t;
+  document.getElementById("fileListPanel").style.display = (t==="file")?"flex":"none";
+  document.getElementById("timelinePanel").style.display = (t==="time")?"flex":"none";
+  document.getElementById("accusePanel").style.display = (t==="accuse")?"flex":"none";
+  document.querySelectorAll(".tabbtn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("tabFile").classList.toggle("active", t==="file");
+  document.getElementById("tabTime").classList.toggle("active", t==="time");
+  document.getElementById("tabAccuse").classList.toggle("active", t==="accuse");
+}
+
+/* --- 文档列表 & 阅读 --- */
+function renderDocList(){
+  const box = document.getElementById("docList");
+  box.innerHTML = "";
+  DOCS.forEach(d=>{
+    const q = searchQuery.toLowerCase();
+    const hit = q && d.body.toLowerCase().includes(q);
+    const div = document.createElement("div");
+    div.className = "doc" + (hit?" searchhit":"");
+    div.innerHTML = `<div class="t">${d.title}</div><div class="d">${esc(d.desc)}</div>` +
+      (hit? `<div class="m">含关键词「${esc(searchQuery)}」${countHits(d.body,q)} 处 · 点击查看</div>`:"");
+    div.onclick = ()=> openNote(d.id);
+    box.appendChild(div);
+  });
+}
+function countHits(text, q){
+  let c=0, i=0; while((i=text.toLowerCase().indexOf(q,i))!==-1){c++; i+=q.length;} return c;
+}
+function openNote(id){
+  const head=document.getElementById("viewerTitle"), body=document.getElementById("viewerBody");
+  if(id===""||id==null){ head.textContent="选择左侧档案开始阅读"; body.textContent="点击档案列表中的任一份文件以阅读其完整内容。"; body.style.color="var(--dim)"; body.style.fontStyle="italic"; return;}
+  const d = DOCS[id];
+  head.textContent = d.title;
+  body.innerHTML = highlightText(d.body, searchQuery);
+  body.style.color="var(--ink)"; body.style.fontStyle="normal";
+}
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function escRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
+function highlightText(text, q){
+  if(q){
+    const re = new RegExp("("+escRegex(q)+")","gi");
+    return esc(text).replace(re, (_m,g)=>`<mark>${g}</mark>`).replace(/\n/g,"<br>");
+  }
+  return esc(text).replace(/\n/g,"<br>");
+}
+
+/* --- 搜索 --- */
+function doSearch(){
+  searchQuery = document.getElementById("kw").value.trim();
+  renderDocList();
+  if(cleared) return;
+  // 打开第一个命中的档案（若有）
+  if(searchQuery){
+    const first = DOCS.findIndex(d=>d.body.toLowerCase().includes(searchQuery.toLowerCase()));
+    if(first!==-1) openNote(first);
+  }
+}
+
+/* --- 时间线 --- */
+function initTimeline(){
+  const box = document.getElementById("slots");
+  box.innerHTML = "";
+  const cres = document.querySelectorAll(".slot");
+  GOLDEN.forEach((g,i)=>{
+    const slot = document.createElement("div");
+    slot.className="slot";
+    const ds = `<select id="TD_${i}">` + DATES.map((dt,j)=>`<option value="${j}">${dt}</option>`).join("") + `</select>`;
+    const es = `<select id="TE_${i}">` + EVENTS.map((ev,j)=>`<option value="${j}">${ev}</option>`).join("") + `</select>`;
+    slot.innerHTML = `<label>时间槽 ${i+1}</label>` + ds + es + `<div class="st" id="TS_${i}">?</div>`;
+    box.appendChild(slot);
+  });
+}
+function checkTimeline(){
+  let ok=0;
+  GOLDEN.forEach((g,i)=>{
+    const d=+document.getElementById("TD_"+i).value;
+    const e=+document.getElementById("TE_"+i).value;
+    const st=document.getElementById("TS_"+i);
+    const good = (d===g.date && e===g.ev);
+    if(good){ ok++; st.textContent="✓"; st.className="st ok"; }
+    else if(d===g.date || e===g.ev){ st.textContent="半"; st.className="st no"; }
+    else { st.textContent="✗"; st.className="st no"; }
+  });
+  document.getElementById("tlBarText").textContent = ok + " / 8";
+  document.getElementById("tlFill").style.width = (ok/8*100)+"%";
+  if(ok===8){
+    document.getElementById("tabAccuse").disabled = false;
+    if(!timelineDone){
+      timelineDone = true;
+      alert("时间线已还原至 100%！已开放「指认真凶」。");
+    }
+  }
+}
+function bindTimeline(){
+  GOLDEN.forEach((g,i)=>{
+    document.getElementById("TD_"+i).onchange = checkTimeline;
+    document.getElementById("TE_"+i).onchange = checkTimeline;
+  });
+}
+
+/* --- 指认 --- */
+function initAccuse(){
+  const box = document.getElementById("suspects");
+  box.innerHTML="";
+  SUSPECTS.forEach(s=>{
+    const div=document.createElement("div");
+    div.className="suspect";
+    div.innerHTML=`<div><div class="sname">${s.name}</div><div class="srole">${esc(s.role)}</div></div><button class="button" onclick="accuse('${s.name}')">指认</button>`;
+    box.appendChild(div);
+  });
+}
+function accuse(name){
+  const sus = SUSPECTS.find(s=>s.name===name);
+  const box=document.getElementById("ending");
+  box.style.display="block";
+  cleared=true;
+  if(sus.truth){
+    box.innerHTML = `<h3 style="color:var(--ok)">结案 · 真凶锁定</h3>`+
+    `<p><b>你指认了 ${name}</b> —— 正确！</p>`+
+    `<p>周明远利用停电盲区、空梯诡计与钟表调整编织了完美不在场证明，但因四大破绽败露：</p>`+
+    `<ol>`+
+    `<li><b>空梯真相</b>：值班日志"21:40离开"与原始录像（21:35空载下行）矛盾，周明远从未离开公寓。</li>`+
+    `<li><b>涂改笔迹</b>：8/29页涂改经鉴定为周明远所写，暴露其日期认知偏差。</li>`+
+    `<li><b>指甲缝墨水</b>：死者死后被人强制握笔刮蹭，坐实伪造日记。</li>`+
+    `<li><b>声学+毛毡</b>：林薇证词与桌脚毛毡纤维，证明凶手分两段调整书桌。</li>`+
+    `</ol>`+
+    `<p>周明远被逮捕，罪名成立。他的"完美谋杀"化为一桩被钉死的铁案。卷宗就此归档。</p>`+
+    `<button class="button" onclick="location.reload()">重新开始</button>`;
+  }else{
+    box.innerHTML = `<h3 style="color:var(--bad)">真相错位 · 真凶逍遥法外</h3>`+
+    `<p><b>你指认了 ${name}</b> —— 你被表象迷惑了。</p>`+
+    `<p>${name} 确有可疑之处，但真正的凶手 <b>周明远</b> 早已在停电与空梯之间完成了他的表演：</p>`+
+    `<p>关键物证——空梯录像（21:35空载下行）、涂改笔迹鉴定、死者指甲缝里的派克51墨水、清晨移动书桌的毛毡纤维——全部指向那个"看起来最无辜"的风水师。他从未离开公寓，凌晨行凶后伪造了钟表与日记，清晨又补全了书桌位移的诡计。</p>`+
+    `<p>你选错了对象，${name} 被证清白；而那支笔杆上的微量皮屑与指甲缝墨水的完整比对，将永远尘封在未归档的物证袋中，成为一桩悬案。</p>`+
+    `<button class="button" onclick="location.reload()">重新开始</button>`;
+  }
+  box.scrollIntoView({behavior:"smooth"});
+}
+
+/* ============ 初始化 ============ */
+renderDocList();
+initTimeline();
+bindTimeline();
+initAccuse();
+
+</script>
+</body>
+</html>
