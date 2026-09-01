@@ -952,7 +952,7 @@ function renderSuspects(){
   c.suspects.forEach(s=>{
     const d=document.createElement("div"); d.className="suspect";
     let extra = s.point ? `<div class="spoint">${esc(s.point)}</div>` : "";
-    d.innerHTML=`<div><div class="sname">${esc(s.name)}</div><div class="srole">${esc(s.role)}</div>${extra}</div><button class="button" onclick="accuse(${esc(s.name)})">指认</button>`;
+    d.innerHTML=`<div><div class="sname">${esc(s.name)}</div><div class="srole">${esc(s.role)}</div>${extra}</div><button class="button" data-name="${esc(s.name)}" onclick="accuse(this.dataset.name)">指认</button>`;
     box.appendChild(d);
   });
 }

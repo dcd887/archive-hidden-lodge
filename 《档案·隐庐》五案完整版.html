@@ -927,7 +927,7 @@ function renderTimeline(){
     $("TD_"+i).value=String(saved.d); $("TE_"+i).value=String(saved.e);
     $("TD_"+i).onchange=()=>checkTimeline(false); $("TE_"+i).onchange=()=>checkTimeline(false);
   });
-  $("tlBarText").textContent="0 / 8"; $("tlFill").style.width="0%";
+  $("tlBarText").textContent="0 / "+c.golden.length; $("tlFill").style.width="0%";
 }
 function checkTimeline(silent){
   const c=CASES[cur]; let ok=0;
@@ -937,8 +937,8 @@ function checkTimeline(silent){
     const good=(d===g.date&&e===g.ev);
     if(good){ok++; st.textContent="✓"; st.className="st ok";} else if(d===g.date||e===g.ev){st.textContent="半"; st.className="st no";} else {st.textContent="✗"; st.className="st no";}
   });
-  $("tlBarText").textContent=ok+" / 8"; $("tlFill").style.width=(ok/8*100)+"%";
-  if(ok===8){ $("tabAccuse").disabled=false; if(!timelineDone){
+  $("tlBarText").textContent=ok+" / "+c.golden.length; $("tlFill").style.width=(ok/c.golden.length*100)+"%";
+  if(ok===c.golden.length){ $("tabAccuse").disabled=false; if(!timelineDone){
     timelineDone=true;
     unlockMono(1);                                   // 时间线 100%：解锁第一段独白
     if(!silent){ toast("时间线已还原 100% · 已解锁首段当事人独白"); }
