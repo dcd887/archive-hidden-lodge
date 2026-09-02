@@ -70,7 +70,7 @@
   .slot .st.ok{ color:var(--ok);} .slot .st.no{ color:var(--bad);}
   /* 时间槽锁定：已匹配正确后不可再改 */
   .slot.locked-slot select{ background:#eef3ea; color:var(--ok); cursor:not-allowed; }
-  /* 疑点作答（结论门控） */
+  /* 追问阶段 */
   #deductWrap{ padding:8px 14px 14px; border-top:1px dashed var(--line);}
   .deduct{ margin-bottom:12px;}
   .deduct .q{ font-weight:bold; font-size:14px; margin-bottom:6px;}
@@ -306,12 +306,12 @@
       <div class="progress">
         还原进度：<b id="tlBarText">0 / 8</b>
         <div class="bar"><div class="fill" id="tlFill"></div></div>
-        <div style="font-size:12px;color:var(--dim);margin-top:6px;">为每个时间槽选择【日期】与【事件】。匹配正确的时间槽会绿色锁定；全部 8 槽达 100% 后进入「疑点作答」（结论门控），逐一排除疑点方可开放指认。若急于收网，可提前跳过——但将以「缺憾结案」。</div>
+        <div style="font-size:12px;color:var(--dim);margin-top:6px;">为每个时间槽选择【日期】与【事件】。匹配正确的时间槽会绿色锁定；全部 8 槽达 100% 后进入「追问」（追问阶段），逐一排除疑点方可开放指认。若急于收网，可提前跳过——但将以「未竟结案」。</div>
       </div>
       <div id="slots"></div>
       <div style="padding:0 14px;"><button class="button ghost" id="flawBtn" onclick="flawAccuse()" style="display:none;">提前收网（接受缺憾 · 跳过疑点）</button></div>
       <div id="deductWrap" class="hidden">
-        <h3 style="margin:2px 0 4px;font-size:14px;color:var(--accent);">疑点作答 · 结论门控</h3>
+        <h3 style="margin:2px 0 4px;font-size:14px;color:var(--accent);">追问阶段 · 关键细节</h3>
         <div style="font-size:12px;color:var(--dim);margin-bottom:10px;">时间线已还原完整。逐一排除以下疑点，全部答对即开放「指认真凶」——这是对证据链的最终复核。<b id="deductCount" style="color:var(--accent);margin-left:6px;"></b></div>
         <div id="deductQ"></div>
       </div>
@@ -647,7 +647,7 @@ let endingShown = false;
 let hintCounts = [0,0,0,0,0];           // 每案已揭示的提示条数
 let tlState = [[],[],[],[],[]];          // 每案时间线选择 {d,e}[8]
 let flawed = [false,false,false,false,false]; // 该案是否以「缺憾」提前收网
-let deduced = [false,false,false,false,false];// 该案是否已通过「疑点作答」门控
+let deduced = [false,false,false,false,false];// 该案是否已通过追问阶段
 let dedAns = [[],[],[],[],[]];           // 每案每疑点所选答案（选项下标）
 let monoUnlocked = [0,0,0,0,0];          // 每案当事人独白解锁位：bit0=时间线后(指认前)段 / bit1=结案后段
 let notes = { text: [], draw: null };     // 侦查笔记：文本数组 + 绘图 dataURL
@@ -810,7 +810,7 @@ function renderMenu(){
   const cnt=solved.filter(Boolean).length;
   $("progressLabel").textContent = "已侦破 " + cnt + " / 5";
   const arch=$("archiveList"); arch.innerHTML="";
-  const revs=CASES.map((c,i)=>solved[i]?(c.reveal+(flawed[i]?"（缺憾收网）":"")):null).filter(Boolean);
+  const revs=CASES.map((c,i)=>solved[i]?(c.reveal+(flawed[i]?"（未竟）":"")):null).filter(Boolean);
   if(revs.length===0){ arch.innerHTML="<li>尚未侦破任何案件。破解各案后，沉璧暗线将在此逐步归档。</li>"; }
   else revs.forEach(r=>{ const li=document.createElement("li"); li.textContent=esc(r); arch.appendChild(li); });
 }
@@ -829,7 +829,7 @@ function renderGuixu(){
     let html=`<div class="panel" style="margin:12px 0;padding:0;">
       <div style="padding:10px 14px;background:#e8e1cd;border-bottom:1px solid var(--line);"><b>${esc(c.no)} · ${esc(c.title)}</b> <span style="color:var(--accent);font-size:12px;">· ${esc(c.city)}</span></div>
       <div style="padding:10px 14px;">
-        <div style="color:var(--accent);font-size:13px;">◈ 暗线：${esc(c.reveal)}${flawed[i]?'<span style="color:var(--gold);">（缺憾收网）</span>':''}</div>`;
+        <div style="color:var(--accent);font-size:13px;">◈ 暗线：${esc(c.reveal)}${flawed[i]?'<span style="color:var(--gold);">（未竟）</span>':''}</div>`;
     html+=`<div style="margin-top:6px;font-size:12px;color:var(--dim);">当事人独白：${(mono&1)?'✓第一段 ':(mono?'  ':'  🔒')}${(mono&2)?'✓第二段':(mono?'  ':'  🔒')} ${mono?(mono&1&&mono&2?'':'（未完）'):'（未解锁）'}</div>`;
     if(mono&1) html+=`<div class="mono" style="margin-top:8px;line-height:1.8;"><b style="color:var(--accent);">· 第一段</b><div>${markText(MONO[i][0],"")}</div></div>`;
     if(mono&2) html+=`<div class="mono" style="margin-top:8px;line-height:1.8;"><b style="color:var(--accent);">· 第二段</b><div>${markText(MONO[i][1],"")}</div></div>`;
@@ -1014,7 +1014,7 @@ function checkTimeline(silent){
     unlockMono(1);                                   // 时间线 100%：解锁第一段独白
     if(!deduced[cur]&&!flawed[cur]){
       $("deductWrap").classList.remove("hidden");
-      if(!silent) toast("时间线已还原 100% · 进入「疑点作答」门控");
+      if(!silent) toast("时间线已还原完整，进入追问阶段");
     } else { $("deductWrap").classList.add("hidden"); }
   } else {
     $("deductWrap").classList.add("hidden");
@@ -1023,7 +1023,7 @@ function checkTimeline(silent){
   updateAccuseEnabled();
   save();
 }
-/* ---- 疑点作答（结论门控）---- */
+/* ---- 追问阶段 ---- */
 function renderDeduct(){
   const c=CASES[cur]; const box=$("deductQ"); if(!box){ return; }
   box.innerHTML="";
@@ -1077,12 +1077,12 @@ function updateFlawBtn(ok){
   $("flawBtn").style.display = show?"":"none";
 }
 function flawAccuse(){
-  if(!confirm("提前收网将跳过「疑点作答」，此案将以「缺憾」结案（不获得完整真相与第二段独白）。仍要继续？")) return;
+  if(!confirm("跳过追问将直接指认真凶，此案证据链存在缺口，不会被记录为完整结案。仍要继续？")) return;
   flawed[cur]=true;
   $("deductWrap").classList.add("hidden");
   $("flawBtn").style.display="none";
   updateAccuseEnabled();
-  toast("已准备提前收网 · 可前往「指认真凶」（缺憾结案）");
+  toast("追问已跳过，可前往「指认真凶」");
   save();
 }
 function updateAccuseEnabled(){
@@ -1107,7 +1107,7 @@ function accuse(name){
     stampShow();                            // 结案印章动画
     let html;
     if(flawed[cur]){
-      html=`<h3 style="color:var(--gold)">结案 · 缺憾收网 · ${c.title}</h3>
+      html=`<h3 style="color:var(--gold)">结案 · 未竟 · ${c.title}</h3>
         <p><b>你指认了 ${esc(sus.name)}</b> —— 真凶确实是他，方向没错。</p>
         <p>但你在证据链尚未排空的缺口上提前收网了：时间线有多处未还原、疑点未逐一排除。你抓住了罪犯，却没把整条真相挖穿。此案判定为<b>「有所缺憾」</b>：<br>· 不会获得第二段当事人独白；<br>· 沉璧暗线在此处的归档不完整。</p>
         <p style="font-size:12px;color:var(--dim);">如需完整结局，可在案件菜单选择「清除并重置进度」重打本案，或以简洁方式重新回到该案补齐时间线与疑点。</p>
