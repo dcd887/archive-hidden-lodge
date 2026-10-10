@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>规则之塔 · 涌现 demo</title>
+<style>
+  :root{
+    --bg:#0a0a0a; --panel:#161616; --card:#1f1f1f; --border:#3a3a3a;
+    --txt:#e8e8e8; --dim:#8a8a8a; --faint:#4a4a4a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;}
+  html,body{width:100%;min-height:100%;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;}
+  #app{max-width:760px;margin:0 auto;padding:14px;min-height:100vh;display:flex;flex-direction:column;}
+
+  #topbar{display:flex;align-items:center;gap:10px;padding:10px 2px 14px;}
+  #roomTag{font-size:12px;letter-spacing:2px;color:var(--dim);border:1px solid var(--border);
+    padding:3px 10px;border-radius:2px;white-space:nowrap;}
+  #roomTitle{font-size:15px;font-weight:600;}
+  #topbar .spacer{flex:1;}
+  #restartBtn{background:none;border:1px solid var(--border);color:var(--dim);font-size:12px;
+    padding:5px 12px;border-radius:2px;cursor:pointer;letter-spacing:1px;}
+  #restartBtn:hover{color:var(--txt);border-color:var(--faint);}
+
+  #rulePanel{border:1px solid var(--border);background:var(--panel);padding:10px 12px;margin-bottom:14px;}
+  #ruleTitle{font-size:11px;color:var(--dim);letter-spacing:3px;margin-bottom:8px;}
+  #ruleLog{display:flex;flex-wrap:wrap;gap:8px;min-height:26px;}
+  .ruleCard{font-size:13px;padding:4px 12px;border:1px solid var(--border);border-radius:3px;background:var(--card);color:var(--txt);}
+  .ruleCard.old{color:var(--faint);border-color:#262626;text-decoration:line-through;}
+  .ruleCard.comp{color:var(--txt);border-color:#555;}
+
+  #hintBar{min-height:46px;display:flex;align-items:center;justify-content:center;text-align:center;
+    font-size:14px;color:var(--txt);letter-spacing:1px;transition:opacity .6s;margin-bottom:8px;}
+  #hintBar.dim{opacity:0;}
+  #hintBar.small{font-size:13px;color:var(--dim);}
+
+  #stage{flex:1;border:1px solid var(--border);background:var(--panel);position:relative;
+    min-height:440px;overflow:hidden;}
+  .room{position:absolute;inset:0;display:none;overflow-y:auto;}
+  .room.active{display:block;}
+
+  .geo{position:absolute;cursor:pointer;transition:filter .1s,opacity .3s;}
+  .geo:active{filter:brightness(1.35);}
+  .btn3d{cursor:pointer;border:1px solid rgba(255,255,255,.22);transition:filter .1s;}
+  .btn3d:active{filter:brightness(1.4);}
+
+  /* Room1 */
+  #r1 .sq{position:absolute;width:64px;height:64px;border:1px solid rgba(255,255,255,.25);}
+  #r1 .btnBox{position:absolute;bottom:150px;left:50%;transform:translateX(-50%);display:flex;justify-content:space-between;gap:26px;}
+  #r1 .pbtn{width:58px;height:58px;border-radius:3px;position:relative;cursor:pointer;border:1px solid rgba(255,255,255,.25);}
+  #r1 .pbtn .hintNum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:15px;color:#fff;opacity:.13;pointer-events:none;}
+  #r1 .sqLbl{position:absolute;width:64px;text-align:center;font-size:10px;color:var(--faint);letter-spacing:1px;}
+
+  /* Room2 */
+  #r2 .hole{position:absolute;width:70px;height:70px;border-radius:50%;border:2px dashed var(--faint);}
+  #r2 .hole.filled{border-style:solid;border-color:var(--border);}
+  #r2 .hole .dots{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:15px;color:#fff;opacity:.18;letter-spacing:3px;pointer-events:none;}
+  #r2 .hole.filled .dots{opacity:.8;color:var(--dim);}
+  #r2 .circle{position:absolute;width:52px;height:52px;border-radius:50%;border:1px solid rgba(255,255,255,.25);
+    display:flex;align-items:center;justify-content:center;font-size:14px;letter-spacing:2px;color:rgba(255,255,255,.55);cursor:pointer;}
+  #r2 .dialBox{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);text-align:center;display:none;z-index:5;}
+  #r2 .dialBox.show{display:block;}
+  #r2 .dial{width:130px;height:44px;border:1px solid var(--border);background:#222;margin:0 auto 6px;
+    display:flex;align-items:center;justify-content:center;font-size:22px;font-family:ui-monospace,monospace;color:var(--txt);
+    cursor:pointer;}
+  #r2 .dialLbl{font-size:12px;color:var(--dim);letter-spacing:1px;}
+
+  /* Room3 */
+  #r3tris{position:absolute;left:0;right:0;top:86px;display:flex;justify-content:center;gap:26px;}
+  #r3 .tri{cursor:pointer;color:#4d4d4d;width:64px;height:64px;display:flex;align-items:center;justify-content:center;
+    font-size:52px;transition:color .1s,opacity .1s;}
+  #r3 .tri.lit{color:#d8d8d8;}
+  #r3svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  #r3 .leverBox{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);text-align:center;z-index:5;}
+  #r3 .lever{width:110px;height:42px;border:1px solid var(--border);background:var(--card);color:var(--txt);
+    display:flex;align-items:center;justify-content:center;font-size:13px;letter-spacing:2px;cursor:pointer;border-radius:3px;}
+  #r3 .lever.stopped{background:#333;}
+  #r3 .lever:active{background:#3a3a3a;}
+  #r3 .frag{position:absolute;width:34px;height:34px;opacity:.55;cursor:pointer;color:#777;display:flex;align-items:center;justify-content:center;font-size:26px;}
+
+  /* Room4 涌现 CA */
+  #r4{overflow-y:auto;}
+  #r4 .caWrap{display:flex;flex-wrap:wrap;gap:18px;justify-content:center;padding:22px 10px 6px;}
+  #caGrid{display:grid;grid-template-columns:repeat(5,62px);gap:6px;}
+  #caGrid .cell{width:62px;height:62px;border:1px solid var(--border);cursor:pointer;transition:filter .1s;}
+  #caGrid .cell.on{background:#ccc;border-color:#aaa;}
+  #caGrid .cell:active{filter:brightness(1.4);}
+  #caSide{display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:4px;}
+  #caSide .caLabel{font-size:11px;color:var(--dim);letter-spacing:2px;}
+  #targetGrid{display:grid;grid-template-columns:repeat(5,13px);gap:2px;}
+  #targetGrid .tcell{width:13px;height:13px;background:#2a2a2a;}
+  #targetGrid .tcell.on{background:#8a8a8a;}
+  #r4 .caControls{display:flex;justify-content:center;align-items:center;gap:12px;padding:12px 0 4px;}
+  #r4 .cbtn{width:110px;height:44px;border:1px solid var(--border);background:var(--card);color:var(--txt);
+    font-size:14px;letter-spacing:3px;cursor:pointer;border-radius:3px;}
+  #r4 .cbtn:active{background:#333;}
+  #r4 .caSteps{font-size:13px;color:var(--dim);letter-spacing:1px;min-width:70px;text-align:center;}
+  #r4 .caToggles{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:8px 0;}
+  #r4 .tgbtn{min-width:150px;height:36px;border:1px solid var(--border);background:var(--panel);color:var(--dim);
+    font-size:12px;letter-spacing:1px;cursor:pointer;border-radius:3px;}
+  #r4 .tgbtn.on{color:var(--txt);border-color:#777;}
+
+  /* 门 */
+  .doorFrame{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:150px;height:110px;
+    border:3px solid #5a5a5a;display:flex;align-items:center;justify-content:center;
+    font-size:11px;color:var(--faint);letter-spacing:2px;transition:opacity .8s,border-color .8s;pointer-events:none;}
+  .doorFrame.open{border-color:transparent;opacity:0;}
+  #r4 .doorFrame{position:relative;left:auto;bottom:auto;transform:none;margin:14px auto 4px;}
+
+  /* 胜利 / 开场 */
+  #victory{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:18px;text-align:center;background:var(--bg);z-index:20;overflow-y:auto;}
+  #victory.show{display:flex;}
+  #victory h1{font-size:26px;letter-spacing:2px;font-weight:600;line-height:1.6;}
+  #victory .sub{color:var(--dim);font-size:14px;letter-spacing:1px;line-height:1.9;}
+  #victory .stats{color:var(--faint);font-size:12px;letter-spacing:1px;}
+  #victory .again{border:1px solid var(--border);background:none;color:var(--txt);padding:10px 26px;
+    font-size:14px;letter-spacing:3px;cursor:pointer;border-radius:2px;margin-top:6px;}
+  #victory .again:hover{background:var(--card);}
+
+  #intro{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;text-align:center;z-index:30;background:var(--bg);}
+  #intro.hide{display:none;}
+  #intro h1{font-size:30px;letter-spacing:4px;font-weight:600;}
+  #intro p{color:var(--dim);font-size:13px;letter-spacing:1px;line-height:2;}
+  #intro .start{border:1px solid var(--border);background:none;color:var(--txt);padding:12px 40px;
+    font-size:15px;letter-spacing:4px;cursor:pointer;border-radius:2px;margin-top:10px;}
+  #intro .start:hover{background:var(--card);}
+
+  @media (max-width:420px){
+    #caGrid{grid-template-columns:repeat(5,54px);}
+    #caGrid .cell{width:54px;height:54px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <span id="roomTag">房间 1 / 4</span>
+    <span id="roomTitle">建立规则</span>
+    <span class="spacer"></span>
+    <button id="restartBtn">重新开始</button>
+  </div>
+
+  <div id="rulePanel">
+    <div id="ruleTitle">涌 现 日 志</div>
+    <div id="ruleLog"></div>
+  </div>
+
+  <div id="hintBar"></div>
+
+  <div id="stage">
+    <!-- ============ Room 1 ============ -->
+    <div class="room active" id="r1">
+      <div class="sq" style="left:110px;top:54px;background:#333333;" data-sq="0"></div>
+      <div class="sqLbl" style="left:110px;top:124px;">深</div>
+      <div class="sq" style="left:50%;top:54px;transform:translateX(-50%);background:#808080;" data-sq="1"></div>
+      <div class="sqLbl" style="left:50%;top:124px;transform:translateX(-50%);">中</div>
+      <div class="sq" style="right:110px;top:54px;background:#cccccc;" data-sq="2"></div>
+      <div class="sqLbl" style="right:110px;top:124px;">浅</div>
+      <div class="btnBox">
+        <div class="pbtn" style="background:#808080;" data-idx="0"><span class="hintNum">2</span></div>
+        <div class="pbtn" style="background:#333333;" data-idx="1"><span class="hintNum">1</span></div>
+        <div class="pbtn" style="background:#cccccc;" data-idx="2"><span class="hintNum">3</span></div>
+      </div>
+      <div class="doorFrame" id="door1v">门 · 锁</div>
+    </div>
+
+    <!-- ============ Room 2 ============ -->
+    <div class="room" id="r2">
+      <div class="hole" style="left:105px;top:66px;" data-h="0"><span class="dots">•••</span></div>
+      <div class="hole" style="left:50%;top:66px;transform:translateX(-50%);" data-h="1"><span class="dots">••</span></div>
+      <div class="hole" style="right:105px;top:66px;" data-h="2"><span class="dots">•</span></div>
+
+      <div class="circle" style="left:125px;top:216px;background:#404040;" data-c="0">•••</div>
+      <div class="circle" style="left:50%;top:216px;transform:translateX(-50%);background:#808080;" data-c="1">••</div>
+      <div class="circle" style="right:125px;top:216px;background:#bfbfbf;" data-c="2">•</div>
+
+      <div class="dialBox">
+        <div class="dialLbl">拨盘（点击 +1）</div>
+        <div class="dial" id="dial">0</div>
+      </div>
+      <div class="doorFrame" id="door2v">门 · 锁</div>
+    </div>
+
+    <!-- ============ Room 3 ============ -->
+    <div class="room" id="r3">
+      <div class="frag" style="left:52px;top:196px;" data-f="0">◇</div>
+      <div class="frag" style="left:166px;top:286px;" data-f="1">◇</div>
+      <div class="frag" style="right:62px;top:226px;" data-f="2">◇</div>
+
+      <svg id="r3svg">
+        <line id="r3line" x1="50%" y1="38%" x2="50%" y2="25%" stroke="#cccccc" stroke-width="2"/>
+        <circle id="r3pivot" cx="50%" cy="38%" r="4" fill="#aaaaaa"/>
+      </svg>
+
+      <div id="r3tris">
+        <div class="tri" id="t0">▲</div>
+        <div class="tri" id="t1">▲</div>
+        <div class="tri" id="t2">▲</div>
+        <div class="tri" id="t3">▲</div>
+      </div>
+
+      <div class="leverBox"><div class="lever" id="lever">拉 杆</div></div>
+      <div class="doorFrame" id="door3v">门 · 锁</div>
+    </div>
+
+    <!-- ============ Room 4 涌现 ============ -->
+    <div class="room" id="r4">
+      <div class="caWrap">
+        <div id="caGrid"></div>
+        <div id="caSide">
+          <div class="caLabel">目 标</div>
+          <div id="targetGrid"></div>
+          <div class="caLabel" style="margin-top:8px;color:var(--faint);">设种子格 → 步进</div>
+        </div>
+      </div>
+      <div class="caControls">
+        <button class="cbtn" id="caStep">步 进</button>
+        <button class="cbtn" id="caReset">重 置</button>
+        <span class="caSteps" id="caSteps">步数 0</span>
+      </div>
+      <div class="caToggles">
+        <button class="tgbtn on" id="tgSurvive">灰度规则 ✓（生存）</button>
+        <button class="tgbtn on" id="tgBirth">数量规则 ✓（诞生）</button>
+        <button class="tgbtn" id="tgSeq">时序：同时结算</button>
+      </div>
+      <div class="doorFrame" id="door4v">门 · 锁</div>
+    </div>
+
+    <div id="victory">
+      <h1>塔，自己长成了<br>你没想到的样子。</h1>
+      <div class="sub" id="victorySub"></div>
+      <div class="stats" id="victoryStats"></div>
+      <button class="again" id="againBtn">再 来 一 次</button>
+    </div>
+
+    <div id="intro">
+      <h1>规则之塔 · 涌现</h1>
+      <p>HerTrees_MVP · 黑白极简解谜<br>你只学会三条极简规则。<br>但当它们同时运转，<br>塔会"长"出你从未设计过的样子。</p>
+      <button class="start" id="startBtn">开 始</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================= GameState ================= */
+const GS = {
+  room_solved:{1:false,2:false,3:false,4:false},
+  current_room:1,
+  known_rules:[],
+  overridden:[],
+  composed:[],
+  start_ts:0,
+  reset(){
+    this.room_solved={1:false,2:false,3:false,4:false};
+    this.current_room=1; this.known_rules=[]; this.overridden=[]; this.composed=[];
+    this.start_ts=Date.now();
+  },
+  add_rule(rule){
+    if(!this.known_rules.includes(rule)) this.known_rules.push(rule);
+  },
+  override_rule(old_rule,new_rule){
+    const i=this.known_rules.indexOf(old_rule);
+    if(i>=0) this.known_rules.splice(i,1);
+    if(!this.overridden.includes(old_rule)) this.overridden.push(old_rule);
+    if(!this.known_rules.includes(new_rule)) this.known_rules.push(new_rule);
+  },
+  add_composed(a,b,result){
+    this.composed.push({a:a,b:b,result:result,revealed:false});
+  },
+  reveal_composed(){
+    this.composed.forEach(e=>e.revealed=true);
+  }
+};
+
+const $=s=>document.querySelector(s);
+const roomTitles={1:["房间 1 / 4","建立规则"],2:["房间 2 / 4","打破规则"],3:["房间 3 / 4","再打破"],4:["房间 4 / 4","元谜题 · 涌现"]};
+const roomHints={1:"观察。",2:"你刚学会的规则，可能不是全部。",3:"有些东西，会自己改变。",4:"所有规则，同时生效。"};
+const hintBar=$("#hintBar");
+let hintTimer=null;
+
+function showHint(text,dur){
+  hintBar.textContent=text;
+  hintBar.classList.remove("dim","small");
+  clearTimeout(hintTimer);
+  hintTimer=setTimeout(()=>hintBar.classList.add("dim"), dur||2600);
+}
+function flashHint(text){
+  hintBar.textContent=text;
+  hintBar.classList.remove("dim");
+  hintBar.classList.add("small");
+  clearTimeout(hintTimer);
+  hintTimer=setTimeout(()=>hintBar.classList.add("dim"), 1400);
+}
+
+function updateRuleLog(){
+  const log=$("#ruleLog");
+  log.innerHTML="";
+  GS.known_rules.forEach(r=>{
+    const c=document.createElement("div");
+    c.className="ruleCard";
+    c.textContent="· "+r;
+    log.appendChild(c);
+  });
+  GS.overridden.forEach(r=>{
+    const c=document.createElement("div");
+    c.className="ruleCard old";
+    c.textContent="· "+r;
+    log.appendChild(c);
+  });
+  GS.composed.forEach(e=>{
+    const c=document.createElement("div");
+    c.className="ruleCard comp";
+    c.textContent=`${e.a} × ${e.b} → ${e.revealed?e.result:"?"}`;
+    log.appendChild(c);
+  });
+}
+
+function openDoor(id,then){
+  document.getElementById(id).classList.add("open");
+  setTimeout(then, 1500);
+}
+
+function loadRoom(id){
+  GS.current_room=id;
+  document.querySelectorAll(".room").forEach(r=>r.classList.remove("active"));
+  document.querySelector("#r"+id).classList.add("active");
+  $("#roomTag").textContent=roomTitles[id][0];
+  $("#roomTitle").textContent=roomTitles[id][1];
+  if(id===4) R4.onEnter();
+  updateRuleLog();
+  showHint(roomHints[id],3400);
+}
+
+/* ================= Room 1 ================= */
+const R1=(function(){
+  // 按钮灰度：idx0=中(0.5) idx1=深(0.2) idx2=浅(0.8)；正确顺序 深→中→浅
+  const clickOrder=[1,0,2];
+  let seq=[], solved=false;
+
+  document.querySelectorAll("#r1 .pbtn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      if(solved) return;
+      const idx=+btn.dataset.idx;
+      seq.push(idx);
+      if(seq.length>clickOrder.length){ seq=[]; flashHint("顺序不对，但信息已记录"); return; }
+      for(let i=0;i<seq.length;i++){
+        if(seq[i]!==clickOrder[i]){ seq=[]; flashHint("顺序不对，但信息已记录"); return; }
+      }
+      btn.style.filter="brightness(1.35)";
+      setTimeout(()=>btn.style.filter="",180);
+      if(seq.length===clickOrder.length){
+        solved=true;
+        GS.room_solved[1]=true;
+        GS.add_rule("灰度=顺序");
+        updateRuleLog();
+        showHint("门开了。");
+        openDoor("door1v",()=>loadRoom(2));
+      }
+    });
+  });
+
+  return { reset(){
+    seq=[]; solved=false;
+    document.querySelectorAll("#r1 .pbtn").forEach(b=>b.style.filter="");
+  }};
+})();
+
+/* ================= Room 2 ================= */
+const R2=(function(){
+  // 圆按钮：c0=•••(3点·深) c1=••(2点·中) c2=•(1点·浅)；按圆点 1→2→3 升序
+  const embedOrder=[2,1,0];
+  let embedded=[false,false,false];
+  let dial=0, dialReady=false, solved=false;
+
+  document.querySelectorAll("#r2 .circle").forEach(c=>{
+    c.addEventListener("click",()=>{
+      if(solved||dialReady) return;
+      const cIdx=+c.dataset.c;
+      const pos=embedded.findIndex(e=>!e);
+      if(pos<0) return;
+      if(cIdx===embedOrder[pos]){
+        embedded[pos]=true;
+        c.style.display="none";
+        const h=document.querySelector(`#r2 .hole[data-h="${cIdx}"]`);
+        h.classList.add("filled");
+        h.style.background=c.style.background;
+        if(embedded.every(Boolean)){
+          dialReady=true;
+          $("#r2 .dialBox").classList.add("show");
+          showHint("密码：3",4000);
+        }
+      }else{
+        flashHint("灰度不是答案，看圆点数量");
+        R2.reset();
+      }
+    });
+  });
+  $("#dial").addEventListener("click",()=>{
+    if(!dialReady||solved) return;
+    dial=(dial+1)%10;
+    const t=dial/9, gray=Math.round(t*255);
+    const el=$("#dial");
+    el.textContent=dial;
+    el.style.background=`rgb(${gray},${gray},${gray})`;
+    if(dial===3){
+      solved=true;
+      GS.room_solved[2]=true;
+      GS.override_rule("灰度=顺序","数量>灰度");
+      GS.add_composed("灰度","数量","数量优先");
+      GS.reveal_composed();
+      updateRuleLog();
+      showHint("门开了。");
+      openDoor("door2v",()=>loadRoom(3));
+    }
+  });
+
+  return { reset(){
+    embedded=[false,false,false];
+    dial=0; dialReady=false; solved=false;
+    document.querySelectorAll("#r2 .circle").forEach(c=>c.style.display="");
+    document.querySelectorAll("#r2 .hole").forEach(h=>{h.classList.remove("filled");h.style.background="";});
+    $("#r2 .dialBox").classList.remove("show");
+    $("#dial").textContent="0"; $("#dial").style.background="#222";
+  }};
+})();
+
+/* ================= Room 3 ================= */
+const R3=(function(){
+  const tris=[...document.querySelectorAll("#r3 .tri")];
+  const frags=document.querySelectorAll("#r3 .frag");
+  let flashIdx=0, flashTimer=0;
+  let running=false, pointerOn=false, solved=false;
+  let correctOrder=[], seq=[];
+  let lastT=null;
+  let angle=0;
+
+  function setFlash(){
+    tris.forEach(t=>t.classList.remove("lit"));
+    tris[flashIdx].classList.add("lit");
+  }
+  function tick(ts){
+    const dt=lastT?(ts-lastT)/1000:0; lastT=ts;
+    if(!pointerOn){
+      angle+=2.0*dt;
+      const line=$("#r3line"), svg=$("#r3svg");
+      const w=svg.clientWidth, h=svg.clientHeight;
+      const cx=w/2, cy=h*0.38, R=Math.min(w*0.3,100);
+      const x2=cx+Math.cos(angle)*R, y2=cy+Math.sin(angle)*R;
+      line.setAttribute("x1",cx); line.setAttribute("y1",cy);
+      line.setAttribute("x2",x2); line.setAttribute("y2",y2);
+      $("#r3pivot").setAttribute("cx",cx); $("#r3pivot").setAttribute("cy",cy);
+    }
+    flashTimer+=dt;
+    if(flashTimer>0.8){
+      flashTimer=0;
+      flashIdx=(flashIdx+1)%4;
+      setFlash();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  $("#lever").addEventListener("click",()=>{
+    if(!running||pointerOn||solved) return;
+    pointerOn=true;
+    $("#lever").classList.add("stopped");
+    $("#lever").textContent="已 停";
+    showHint("指针停了。按闪烁顺序点击。",5000);
+  });
+
+  tris.forEach((t,i)=>{
+    t.addEventListener("click",()=>{
+      if(!pointerOn||solved) return;
+      seq.push(i);
+      t.style.opacity="0.55";
+      setTimeout(()=>t.style.opacity="",120);
+      if(seq.length>4){ seq=[]; flashHint("顺序不对，但时间还在走。"); return; }
+      if(seq.length>1 && seq[seq.length-1]!==(seq[seq.length-2]+1)%4){
+        seq=[]; flashHint("顺序不对，但时间还在走。"); return;
+      }
+      if(seq.length===4){
+        solved=true;
+        GS.room_solved[3]=true;
+        GS.override_rule("数量>灰度","时间>数量");
+        updateRuleLog();
+        showHint("门开了。");
+        openDoor("door3v",()=>loadRoom(4));
+      }
+    });
+  });
+
+  frags.forEach(f=>{
+    f.addEventListener("click",()=>{
+      f.style.transform=`translate(${Math.round(Math.random()*26-13)}px,${Math.round(Math.random()*26-13)}px)`;
+      flashHint("这些碎片没用。");
+    });
+  });
+
+  return {
+    start(){
+      flashIdx=0; flashTimer=0; setFlash();
+      running=true; pointerOn=false; lastT=null;
+      requestAnimationFrame(tick);
+    },
+    stop(){ running=false; pointerOn=false; },
+    reset(){
+      running=false; pointerOn=false; solved=false;
+      seq=[]; correctOrder=[]; angle=0; flashIdx=0; flashTimer=0;
+      $("#lever").classList.remove("stopped");
+      $("#lever").textContent="拉 杆";
+      tris.forEach(t=>{t.style.opacity="";t.classList.remove("lit");});
+    }
+  };
+})();
+
+/* ================= Room 4 涌现 CA ================= */
+const R4=(function(){
+  const N=5;
+  const TARGET=[
+    [0,0,1,0,0],
+    [0,1,0,1,0],
+    [1,0,0,0,1],
+    [0,1,0,1,0],
+    [0,0,1,0,0]
+  ];
+  // 已验证种子（3 步到达目标，供测试/可调）：(0,0)(1,2)(2,1)(2,2)(3,3)
+  const SEED=[[0,0],[1,2],[2,1],[2,2],[3,3]];
+  let grid=[], cells=[], steps=0, done=false, entered=false;
+  let r_survive=true, r_birth=true, r_sequential=false;
+
+  // 构造网格与目标预览
+  const g=$("#caGrid"), tg=$("#targetGrid");
+  for(let r=0;r<N;r++){
+    const rowG=[], rowC=[];
+    for(let c=0;c<N;c++){
+      rowG.push(0);
+      const d=document.createElement("div");
+      d.className="cell";
+      d.addEventListener("click",()=>onCell(r,c));
+      g.appendChild(d); rowC.push(d);
+
+      const t=document.createElement("div");
+      t.className="tcell"+(TARGET[r][c]?" on":"");
+      tg.appendChild(t);
+    }
+    grid.push(rowG); cells.push(rowC);
+  }
+
+  function neighbors(gr,r,c){
+    let s=0;
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0) continue;
+      const rr=r+dr, cc=c+dc;
+      if(rr>=0&&rr<N&&cc>=0&&cc<N) s+=gr[rr][cc];
+    }
+    return s;
+  }
+  function evolve(){
+    if(r_sequential){
+      const wg=grid.map(row=>row.slice());
+      for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+        const n=neighbors(wg,r,c);
+        if(wg[r][c]) wg[r][c]=(r_survive&&(n===2||n===3))?1:0;
+        else wg[r][c]=(r_birth&&n===3)?1:0;
+      }
+      return wg;
+    }
+    const ng=grid.map(row=>row.slice());
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+      const n=neighbors(grid,r,c);
+      if(grid[r][c]) ng[r][c]=(r_survive&&(n===2||n===3))?1:0;
+      else ng[r][c]=(r_birth&&n===3)?1:0;
+    }
+    return ng;
+  }
+  function same(a,b){
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(a[r][c]!==b[r][c]) return false;
+    return true;
+  }
+  function paint(){
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+      cells[r][c].classList.toggle("on",grid[r][c]===1);
+    }
+  }
+  function onCell(r,c){
+    if(done) return;
+    grid[r][c]=1-grid[r][c];
+    paint();
+  }
+  function onStep(){
+    if(done) return;
+    grid=evolve();
+    steps++;
+    $("#caSteps").textContent="步数 "+steps;
+    paint();
+    if(steps===6) showHint("涌现没有公式：试着摆一个斜向的形状，再步进观察。",4000);
+    if(same(grid,TARGET)) finish();
+  }
+  function onReset(){
+    if(done) return;
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++) grid[r][c]=0;
+    steps=0;
+    $("#caSteps").textContent="步数 0";
+    paint();
+  }
+  function finish(){
+    done=true;
+    GS.reveal_composed();
+    GS.room_solved[4]=true;
+    updateRuleLog();
+    showHint("它自己变了。规则相互作用，长出了没人设计过的图案。",4000);
+    openDoor("door4v",showVictory);
+  }
+  function onEnter(){
+    if(entered) return;
+    entered=true;
+    GS.add_composed("灰度","数量","目标图案");
+    updateRuleLog();
+  }
+  function updateToggles(){
+    $("#tgSurvive").textContent=`灰度规则 ${r_survive?"✓":"✗"}（生存）`;
+    $("#tgSurvive").classList.toggle("on",r_survive);
+    $("#tgBirth").textContent=`数量规则 ${r_birth?"✓":"✗"}（诞生）`;
+    $("#tgBirth").classList.toggle("on",r_birth);
+    $("#tgSeq").textContent=`时序：${r_sequential?"顺序结算":"同时结算"}`;
+  }
+  $("#caStep").addEventListener("click",onStep);
+  $("#caReset").addEventListener("click",onReset);
+  $("#tgSurvive").addEventListener("click",()=>{if(!done){r_survive=!r_survive;updateToggles();}});
+  $("#tgBirth").addEventListener("click",()=>{if(!done){r_birth=!r_birth;updateToggles();}});
+  $("#tgSeq").addEventListener("click",()=>{if(!done){r_sequential=!r_sequential;updateToggles();}});
+
+  return {
+    onEnter,
+    seed(){ // 调试：一键摆好已验证种子
+      for(let r=0;r<N;r++)for(let c=0;c<N;c++) grid[r][c]=0;
+      SEED.forEach(p=>grid[p[0]][p[1]]=1);
+      steps=0; $("#caSteps").textContent="步数 0";
+      paint();
+    },
+    reset(){
+      done=false; entered=false;
+      r_survive=true; r_birth=true; r_sequential=false;
+      for(let r=0;r<N;r++)for(let c=0;c<N;c++) grid[r][c]=0;
+      steps=0; $("#caSteps").textContent="步数 0";
+      paint(); updateToggles();
+    }
+  };
+})();
+
+/* ================= 胜利 / 开始 / 重启 ================= */
+function showVictory(){
+  document.querySelectorAll(".room").forEach(r=>r.classList.remove("active"));
+  $("#victory").classList.add("show");
+  $("#roomTag").textContent="通关";
+  $("#roomTitle").textContent="元谜题 · 涌现";
+  $("#victorySub").innerHTML="四个房间 · 三条规则<br>灰度 → 数量 → 时间 → 涌现";
+  const sec=Math.round((Date.now()-GS.start_ts)/1000);
+  $("#victoryStats").textContent=`用时 ${sec} 秒`;
+}
+
+function startGame(){
+  GS.reset();
+  document.querySelectorAll(".room").forEach(r=>r.classList.remove("active"));
+  $("#r1").classList.add("active");
+  $("#roomTag").textContent=roomTitles[1][0];
+  $("#roomTitle").textContent=roomTitles[1][1];
+  updateRuleLog();
+  showHint(roomHints[1],3400);
+  $("#intro").classList.add("hide");
+  $("#victory").classList.remove("show");
+  ["door1v","door2v","door3v","door4v"].forEach(id=>document.getElementById(id).classList.remove("open"));
+  R3.start();
+}
+
+function fullReset(){
+  R1.reset(); R2.reset(); R3.reset(); R4.reset();
+  startGame();
+}
+
+$("#startBtn").addEventListener("click",startGame);
+$("#againBtn").addEventListener("click",fullReset);
+$("#restartBtn").addEventListener("click",fullReset);
+</script>
+</body>
+</html>
