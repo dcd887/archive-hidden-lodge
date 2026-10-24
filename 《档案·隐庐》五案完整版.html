@@ -70,7 +70,7 @@
   .slot .st.ok{ color:var(--ok);} .slot .st.no{ color:var(--bad);}
   /* 时间槽锁定：已匹配正确后不可再改 */
   .slot.locked-slot select{ background:#eef3ea; color:var(--ok); cursor:not-allowed; }
-  /* 追问阶段 */
+  /* 疑点作答（结论门控） */
   #deductWrap{ padding:8px 14px 14px; border-top:1px dashed var(--line);}
   .deduct{ margin-bottom:12px;}
   .deduct .q{ font-weight:bold; font-size:14px; margin-bottom:6px;}
@@ -83,6 +83,7 @@
   .suspect:hover{ background:#f6f0dd;}
   .suspect .sname{ font-weight:bold; font-size:15px;}
   .suspect .srole{ font-size:12px; color:var(--dim); margin-top:2px;}
+  .suspect .spoint{ font-size:11px; color:#a08050; margin-top:1px; font-style:italic; line-height:1.4;}
   #ending{ margin:16px; padding:18px; border:1px solid var(--line); background:#fff; line-height:1.9; display:none;}
   #ending h3{ margin-top:0;}
   footer{ text-align:center; padding:10px; font-size:12px; color:var(--dim);}
@@ -137,7 +138,6 @@
   /* ========== 安卓 / iOS 双端适配 ========== */
   html{ -webkit-text-size-adjust:100%; }
   body{ -webkit-tap-highlight-color:transparent; }
-  button, select, [type=text], textarea{ touch-action:manipulation; }
   input, textarea{ font-size:16px !important; } /* iOS 防聚焦缩放 */
   select{ min-height:38px; }
 
@@ -148,8 +148,8 @@
     .tabs .tabbtn{ padding:8px 12px; font-size:13px; min-height:38px; }
     main{ padding:10px; }
     #boardLayout{ grid-template-columns:1fr; gap:10px; }
-    #fileListPanel{ max-height:45vh; overflow:hidden; }
-    #docList{ max-height:34vh; }
+    #fileListPanel{ max-height:none; }
+    #docList{ overflow:auto; max-height:none; }
     #viewer{ max-height:none; min-height:56vh; }
     .slot{ grid-template-columns:1fr; gap:5px; padding:9px 12px; }
     .slot select{ width:100%; font-size:15px; }
@@ -306,12 +306,12 @@
       <div class="progress">
         还原进度：<b id="tlBarText">0 / 8</b>
         <div class="bar"><div class="fill" id="tlFill"></div></div>
-        <div style="font-size:12px;color:var(--dim);margin-top:6px;">为每个时间槽选择【日期】与【事件】。匹配正确的时间槽会绿色锁定；全部 8 槽达 100% 后进入「追问」（追问阶段），逐一排除疑点方可开放指认。若急于收网，可提前跳过——但将以「未竟结案」。</div>
+        <div style="font-size:12px;color:var(--dim);margin-top:6px;">为每个时间槽选择【日期】与【事件】。匹配正确的时间槽会绿色锁定；全部 8 槽达 100% 后进入「疑点作答」（结论门控），逐一排除疑点方可开放指认。若急于收网，可提前跳过——但将以「缺憾结案」。</div>
       </div>
       <div id="slots"></div>
       <div style="padding:0 14px;"><button class="button ghost" id="flawBtn" onclick="flawAccuse()" style="display:none;">提前收网（接受缺憾 · 跳过疑点）</button></div>
       <div id="deductWrap" class="hidden">
-        <h3 style="margin:2px 0 4px;font-size:14px;color:var(--accent);">追问阶段 · 关键细节</h3>
+        <h3 style="margin:2px 0 4px;font-size:14px;color:var(--accent);">疑点作答 · 结论门控</h3>
         <div style="font-size:12px;color:var(--dim);margin-bottom:10px;">时间线已还原完整。逐一排除以下疑点，全部答对即开放「指认真凶」——这是对证据链的最终复核。<b id="deductCount" style="color:var(--accent);margin-left:6px;"></b></div>
         <div id="deductQ"></div>
       </div>
@@ -390,7 +390,7 @@ C({
   brief:"2026年8月30日上午，临江市高档公寓「隐庐」3楼住户、古董商袁景行被发现死于自家书房，后脑遭青铜镇纸重击，现场伪装成入室盗窃失手杀人。\n\n法医精确死亡时间指向凌晨1:17，但书房古董座钟停在1:15、死者腕表停在2:00——这对矛盾的时间证据，揭开了一个利用停电盲区、监控错觉与钟表诡计编织的谋杀迷局。凶手看似拥有完美的不在场证明，却因一封深夜邮件、一处涂改笔迹和一段「无人电梯」的影像而败露。\n\n你受命接手此案：阅读6份档案，还原时间线，从四名嫌疑人中指认真凶。",
   dates:["8/29 09:00","8/29 20:00","8/29 21:00–21:30","8/29 21:35","8/29 21:40","8/30 00:45","8/30 01:15","8/30 01:20–01:35","8/30 09:00–09:20","8/30 11:35"],
   events:["有人趁茶叙调慢书房座钟，并注意到窗锁损坏","全楼停电，监控与电子钟表断电","电梯空载下行，制造「有人已离开」的假象","一名男子从检修通道潜入书房，藏入衣柜","死者深夜发出道歉邮件（存活时间下限）","书房内发生致命一击：后脑被青铜镇纸重击","现场被伪装：调快腕表、涂改日记、摆放钢笔","书桌被人用毛毡垫脚，悄然位移约20cm","有人用备用钥匙开门发现尸体并报警","有人正常乘电梯离开公寓","物业经理与他人合谋搬运杂物（误导）","书桌因撞击导致座钟停摆（伪造说）"],
-  golden:[{date:3,ev:3},{date:4,ev:4},{date:5,ev:5},{date:6,ev:7},{date:7,ev:6},{date:8,ev:0},{date:9,ev:2},{date:10,ev:1}],
+  golden:[{date:1,ev:0},{date:2,ev:1},{date:3,ev:2},{date:4,ev:3},{date:5,ev:4},{date:6,ev:5},{date:7,ev:6},{date:8,ev:7}],
   files:[
     {title:"文件一 · 死者日记·八月篇", desc:"袁景行手写日记，皮质封面，末尾数页有撕毁痕迹。",
      body:"【死者日记·八月篇】\n8月27日：“那支笔又派上用场了。证据要握在自己手里。”\n8月28日：“搬运那面铜镜时把书房窗锁碰坏了，明天得叫人来修。”\n8月29日页（关键）：日期有明显涂改，原写“8月28日”后划去，改为“8月29日”。正文为：“周今晚来，得让他看看那座钟。”\n笔迹鉴定结论：涂改及补写内容非袁景行笔迹，系另一人所写。与周明远字迹比对，吻合度极高。"},
@@ -428,7 +428,7 @@ C({
   brief:"2026年9月6日，临江旧租界一栋民国三层洋房翻修时，于主卧夹层墙内发现一具无名男尸（死亡约半月前）。死者随身仅有一枚刻“顾”字的家族徽章与一支“派克51”钢笔（笔帽编码磨损）。\n\n洋房现主人为民国著名外交官顾守仁的曾孙女、艺术策展人顾念慈。屋内一面巨大的古董穿衣镜，总映出不属于当下的“倒影”——实为镜后隐藏密道暗室的视觉误导。\n\n你接手此案：认出那名“历史学者”周远声的真实身份，还原死前二日，指认藏尸者。",
   dates:["8/15","8/21","8/22","8/23 22:00","8/23 22:20","8/23 23:00","8/24","9/6","9/8 调查·密室","9/10 物证比对"],
   events:["周远声联系顾念慈，愿高价收购顾家民国文献","顾念慈开始整理、拟转移书房旧档，刺激周远声提前动手","周远声租下隔壁单元，持望远镜连日观察洋房","周远声翻墙潜入书房，发现穿衣镜后暗门","周远声入密室取密电被顾明章发现：第一击落空、扭打中被抓伤，第二击死于黄铜镜框","顾明章将尸体推入夹层、砖块封死，清理现场","顾明章购临江→吴州高铁票，谎称回玉京，藏匿吴州旧宅","施工队拆至主卧夹层段，发现尸体报警","李警官发现穿衣镜密道与时间线索的矛盾","周远声与顾念慈合谋私卖顾家旧档（误导）"],
-  golden:[{date:0,ev:0},{date:1,ev:1},{date:2,ev:2},{date:3,ev:3},{date:4,ev:4},{date:5,ev:5},{date:6,ev:6},{date:7,ev:7}],
+  golden:[{date:0,ev:0},{date:1,ev:1},{date:2,ev:2},{date:3,ev:3},{date:4,ev:4},{date:5,ev:5},{date:6,ev:6},{date:7,ev:7},{date:8,ev:8},{date:9,ev:9}],
   files:[
     {title:"文件一 · 顾念慈的装修日志", desc:"施工进度记录，8/23 页有涂改。",
      body:"【顾念慈的装修日志】\n8/16 开工，拆主卧旧壁柜；8/20 贴公告允许临时施工人员出入；\n8/23 页（关键）：原写“叔父到访”，后被划去改写“工人加班”。\n物证说明：涂改笔迹经鉴定晚于案发，原“叔父到访”即顾明章当夜到访之证；顾念慈事后为包庇叔叔而涂改。"},
@@ -485,7 +485,7 @@ C({
     {name:"赵文渊",role:"沈知白的研究生",truth:false,point:"选题被否有怨气，案发在图书馆有借阅记录，但无作案手段。"},
     {name:"顾明章",role:"案2嫌疑人，取保候审中",truth:false,point:"与沈通过话，但案发当晚有吴州高铁出站记录，不在场。"},
     {name:"林婉清",role:"图书管理员，沈的情人",truth:false,point:"供出“沈曾言有人要杀他”，但无作案的动机与手段。"},
-    {name:"王平凡",role:"后勤保洁组长（书吏的伪装）",truth:true,point:"断电窗口与其“在1层仓库”说辞矛盾，监控修复后行踪吻合。"}
+    {name:"王平凡",role:"后勤保洁组长",truth:true,point:"断电窗口与其“在1层仓库”说辞矛盾，监控修复后行踪吻合。"}
   ],
   kill:"王平凡",
   goodText:"真相：这不是自杀——是组织“沉璧”的清除者“书吏”所为。他以保洁组长王平凡的身份潜伏在校后勤，沈知白一旦公开那批“可能改写民国史的密电”，就会威胁到沉璧数十年的“纠正史述”大计。\n\n手法：10/8 晚 20:00 切断走廊监控电源（他有权开配电箱），20:30 捂住口鼻、一刀割断颈动脉，布置“抑郁自杀”；再故意把从警证物库盗出的 GX-07 笔帽搁进抽屉，企图把警方引向前两案——“跨案连环”。\n\n定罪链：<br>①遗书墨迹书写于约三天前（10/5），破碎“临终绝笔”；<br>②断电窗口精确覆盖 20:30，且为有权操作配电箱的内部人员；<br>③王平凡“在1层仓库”之说与5层保洁行踪矛盾；<br>④GX-07 笔帽跨案现身，坐实伪造。\n<br>王平凡落网。暗线全面浮现：钢笔中空、暗箱移证、跨案笔帽——沉璧的存在，已无可掩饰。",
@@ -504,7 +504,7 @@ C({
   brief:"2026年11月，案1中袁景行临死前委托出售的那枚唐代铜镜，出现在港屿拍卖行预展。铜镜背面铭文，实为“沉璧”成员的密语坐标。\n\n预展当晚，鉴定师陈柏年被发现死于仓库：头部遭铜制烛台多次击打，铜镜失窃。\n\n铜镜源出顾家旧藏——顾念慈赶来港屿，正是为追回祖物。而跨临江、蒲京、港三地的连环案，终于在此并轨。",
   dates:["10/20","10/25","10/28 20:00","10/28 22:00","10/29 发现","10/29 修复监控","11/1 跨案比对","11/3 移交记录","11/5 锁定身份","12月·引出案5"],
   events:["铜镜匿名寄达港屿拍卖行，委托人未露面","陈柏年发现背面铭文为密语，开始私下调查","陈柏年致电临江李警官，问询案1铜镜细节","书吏（宋守真，维修工扮相）用铜烛台灭口陈柏年，铜镜失窃，并将 GX-07 笔帽置于其口袋","港警发现铜镜失窃，监控捕捉到“维修工”侧脸","修复监控，确认侧脸清晰可见","修复比对：港维修工与蒲京保洁为同一人，跨省并案","笔帽移交记录发现签收栏空白——内部卧底","查明书吏真实身份＝前旧宫博物院研究员宋守真（流亡海外）","铜镜铭文坐标直指云泽镇旧宅——沉璧据点"],
-  golden:[{date:0,ev:0},{date:1,ev:1},{date:2,ev:2},{date:3,ev:3},{date:4,ev:4},{date:5,ev:5},{date:6,ev:6},{date:8,ev:8}],
+  golden:[{date:0,ev:0},{date:1,ev:1},{date:2,ev:2},{date:3,ev:3},{date:4,ev:4},{date:5,ev:5},{date:6,ev:6},{date:7,ev:7},{date:8,ev:8}],
   files:[
     {title:"文件一 · 铜镜高清拓片", desc:"铭文拓片与破译结果。",
      body:"【铜镜高清拓片】\n背面铭文经天干地支+经纬度双层破译，得到一组坐标，指向 云泽镇 旧宅。\n溯源：铜镜源出顾家旧藏，案前经“沉璧”牵线流入袁景行之手，袁景行急于脱手拟售予李维。\n结论：铭文为“沉璧”据点坐标。"},
@@ -542,7 +542,7 @@ C({
   brief:"2026年12月，警方循铜镜铭文坐标包围云泽镇旧宅。\n\n搜查前夜，守库人秦有德竟被人灭口在密库之内——凶器是库内的一柄青铜镇纸。\n\n密库中查获完整的“沉璧”档案：五部案件中的所有死者与嫌疑人，都与这组织有着隐秘的关联。而档案深处的一支钢笔里，藏着一卷微缩胶片——它直指一条跨越数十年的谎言链条，链条的顶端，是一个你绝想不到的名字。\n\n这是最后一场。你已追到巢穴门口。",
   dates:["搜查前夜 20:00·游抵云泽","搜查前夜 23:00·秦被杀","搜查当日 08:00·破门","搜查当日 10:00·查获档案","搜查当日 14:00·物证伪造链比对","搜查当日晚 21:00·胶片起获","次日 09:00·身份识破","次日 15:00·全员收网","审讯 10:00·口供","结案 14:00·归档"],
   events:["首脑游守志亲赴云泽“封档销证”","守库人秦有德欲挟胶片坐实其罪，被游用青铜镇纸灭口","警方破门，发现秦有德尸体与密库","密库查获完整沉璧档案","档案列明历案“历史证人”与跨案物证伪造记录","库藏钢笔内发现微缩胶片（与案1袁藏互为原本/副本）","游守志“文物南迁”经历与沉璧发端重合，三线闭环","沉璧全员名单收网，组织覆灭","孟知远（档案管理员）为自保杀害秦有德（误导）","顾念慈混入指认游守志（假）"],
-  golden:[{date:0,ev:0},{date:1,ev:1},{date:2,ev:2},{date:3,ev:3},{date:4,ev:4},{date:5,ev:5},{date:6,ev:6},{date:7,ev:7}],
+  golden:[{date:0,ev:0},{date:1,ev:1},{date:2,ev:2},{date:3,ev:3},{date:4,ev:4},{date:5,ev:5},{date:6,ev:6},{date:7,ev:7},{date:8,ev:8},{date:9,ev:9}],
   files:[
     {title:"文件一 · 沉璧成员名单", desc:"化名代号与真实身份对照表。",
      body:"【沉璧成员名单】\n代号“听风”＝周远声（已亡）；代号“书吏”＝宋守真（下狱）。\n多位成员化名身兼文物鉴定、档案管理职务，名单末端以“首领”字样注记，名称被涂去。\n对照：档案字迹与某文物鉴定领域泰斗样本趋同——待鉴定。"},
@@ -559,12 +559,12 @@ C({
   ],
   suspects:[
     {name:"孟知远",role:"沉璧档案“版籍员”",truth:false,point:"被裹挟入库，不掌握首领身份与胶片去向，无杀人条件。"},
-    {name:"游守志",role:"文物鉴定泰斗 · 沉璧首领",truth:true,point:"承自父辈的“南迁”旧档即沉璧发端；亲临“封档销证”，灭口守库人秦有德。"},
+    {name:"游守志",role:"文物鉴定泰斗",truth:true,point:"承自父辈的“南迁”旧档即沉璧发端；亲临“封档销证”，灭口守库人秦有德。"},
     {name:"顾念慈",role:"主动作证的顾家后人",truth:false,point:"全程配合、协助辨认顾家暗线，无作案时间与动机。"},
     {name:"温素华",role:"云泽旧宅女管家",truth:false,point:"可出入库房，但无动机，无杀人凶器来源，其供词反而佐证首领亲临。"}
   ],
   kill:"游守志",
-  goodText:"收束：守库人秦有德想在那晚带着胶片逃出密库、向警方坐实一切，却被亲来“封档销证”的首脑灭口——凶器，正是库内那柄与案1同类的青铜镇纸。\n\n真凶即沉璧首领 **游守志**：文物鉴定泰斗，其父留下的“文物南迁”旧档与“存真不如存顺”之念，让他埋下“纠正史述”的执念，从此以沉璧之名，伪造文献、操控鉴定、消灭证人，用数十年把一段真相钉进暗处。\n\n定罪链：<br>①灭口时序：秦有德死于搜查前夜“封档销证”当晚，唯亲临者可为；<br>②沉璧档案物证伪造链（GX-07 空白签名）印章比对归于其手；<br>③微缩胶片原本/副本均起获，直指全员名单；<br>④其承自父辈的“南迁”旧档与沉璧发端重合——动机与身份同时锁定。<br><br>游守志落网。袁景行、顾家密电、沈知白、陈柏年、秦有德——那些被抹去的历史证人，终于在同一条链上被还以清白。五案合一，假史拨正。沉璧……覆灭。",
+  goodText:"收束：守库人秦有德想在那晚带着胶片逃出密库、向警方坐实一切，却被亲来“封档销证”的首脑灭口——凶器，正是库内那柄与案1同类的青铜镇纸。\n\n真凶即沉璧首领「游守志」：文物鉴定泰斗，其父留下的“文物南迁”旧档与“存真不如存顺”之念，让他埋下“纠正史述”的执念，从此以沉璧之名，伪造文献、操控鉴定、消灭证人，用数十年把一段真相钉进暗处。\n\n定罪链：<br>①灭口时序：秦有德死于搜查前夜“封档销证”当晚，唯亲临者可为；<br>②沉璧档案物证伪造链（GX-07 空白签名）印章比对归于其手；<br>③微缩胶片原本/副本均起获，直指全员名单；<br>④其承自父辈的“南迁”旧档与沉璧发端重合——动机与身份同时锁定。<br><br>游守志落网。袁景行、顾家密电、沈知白、陈柏年、秦有德——那些被抹去的历史证人，终于在同一条链上被还以清白。五案合一，假史拨正。沉璧……覆灭。",
   wrongClue:"真正的凶手是【游守志】。秦有德死于搜查前夜“封档销证”那一刻——只有亲临的首脑能做；而那卷微缩胶片与空白签名，把沉璧的谎言链条一路引到了他的手里。",
   reveal:"案5：沉璧档案＋微缩胶片起获，首领游守志落网——被掩盖数十年的真相拨正，五案合一。",
   deductions:[
@@ -589,7 +589,7 @@ const HINTS = [
   [ // 案3
     "遗书的墨迹书写于死亡前约三天（10/5），人却死在10/8——这不是临终绝笔，是一场排练好的「自杀」。",
     "20:00–20:45走廊监控被断电，断电精确得刚好盖住作案时间；能操作配电箱的，只有后勤内部能接触电力的人。",
-    "保洁组长王平凡自称当时在「1层仓库」，监控修复后却发现他在5层；而GX-07笔帽又偏偏出现在死者抽屉。向沈知白动手的，是伪装成保洁的「书吏」。"
+    "保洁组长王平凡自称当时在「1层仓库」，监控修复后却发现他在5层；而GX-07笔帽又偏偏出现在死者抽屉。向沈知白动手的，是一名伪装成保洁的内部人员——「书吏」。"
   ],
   [ // 案4
     "铜镜背面的铭文是一组密语坐标，指向「沉璧」据点。陈柏年正是死在他说破它之前。",
@@ -607,7 +607,7 @@ const HINTS = [
 const KEYWORDS = [
   ["袁景行","周明远","林薇","李维","赵永昌","座钟","腕表","电梯","停电","钢笔","毛毡","铜镜"],
   ["周远声","顾念慈","顾明章","刘大勇","穿衣镜","密室","黄铜镜框","高铁票","吴州","密电","望远镜"],
-  ["沈知白","赵文渊","王平凡","林婉清","顾明章","遗书","断电","配电箱","笔帽","GX-07","图书馆","笔帽"],
+  ["沈知白","赵文渊","王平凡","林婉清","顾明章","遗书","断电","配电箱","笔帽","GX-07","图书馆"],
   ["陈柏年","宋守真","顾念慈","贺展","铜镜","铭文","坐标","云泽镇","笔帽","移交","仓库","监控"],
   ["游守志","秦有德","孟知远","温素华","青铜镇纸","胶片","南迁","封档销证","灭口名单","微缩胶片","钢笔"]
 ];
@@ -647,7 +647,7 @@ let endingShown = false;
 let hintCounts = [0,0,0,0,0];           // 每案已揭示的提示条数
 let tlState = [[],[],[],[],[]];          // 每案时间线选择 {d,e}[8]
 let flawed = [false,false,false,false,false]; // 该案是否以「缺憾」提前收网
-let deduced = [false,false,false,false,false];// 该案是否已通过追问阶段
+let deduced = [false,false,false,false,false];// 该案是否已通过「疑点作答」门控
 let dedAns = [[],[],[],[],[]];           // 每案每疑点所选答案（选项下标）
 let monoUnlocked = [0,0,0,0,0];          // 每案当事人独白解锁位：bit0=时间线后(指认前)段 / bit1=结案后段
 let notes = { text: [], draw: null };     // 侦查笔记：文本数组 + 绘图 dataURL
@@ -810,7 +810,7 @@ function renderMenu(){
   const cnt=solved.filter(Boolean).length;
   $("progressLabel").textContent = "已侦破 " + cnt + " / 5";
   const arch=$("archiveList"); arch.innerHTML="";
-  const revs=CASES.map((c,i)=>solved[i]?(c.reveal+(flawed[i]?"（未竟）":"")):null).filter(Boolean);
+  const revs=CASES.map((c,i)=>solved[i]?(c.reveal+(flawed[i]?"（缺憾收网）":"")):null).filter(Boolean);
   if(revs.length===0){ arch.innerHTML="<li>尚未侦破任何案件。破解各案后，沉璧暗线将在此逐步归档。</li>"; }
   else revs.forEach(r=>{ const li=document.createElement("li"); li.textContent=esc(r); arch.appendChild(li); });
 }
@@ -829,7 +829,7 @@ function renderGuixu(){
     let html=`<div class="panel" style="margin:12px 0;padding:0;">
       <div style="padding:10px 14px;background:#e8e1cd;border-bottom:1px solid var(--line);"><b>${esc(c.no)} · ${esc(c.title)}</b> <span style="color:var(--accent);font-size:12px;">· ${esc(c.city)}</span></div>
       <div style="padding:10px 14px;">
-        <div style="color:var(--accent);font-size:13px;">◈ 暗线：${esc(c.reveal)}${flawed[i]?'<span style="color:var(--gold);">（未竟）</span>':''}</div>`;
+        <div style="color:var(--accent);font-size:13px;">◈ 暗线：${esc(c.reveal)}${flawed[i]?'<span style="color:var(--gold);">（缺憾收网）</span>':''}</div>`;
     html+=`<div style="margin-top:6px;font-size:12px;color:var(--dim);">当事人独白：${(mono&1)?'✓第一段 ':(mono?'  ':'  🔒')}${(mono&2)?'✓第二段':(mono?'  ':'  🔒')} ${mono?(mono&1&&mono&2?'':'（未完）'):'（未解锁）'}</div>`;
     if(mono&1) html+=`<div class="mono" style="margin-top:8px;line-height:1.8;"><b style="color:var(--accent);">· 第一段</b><div>${markText(MONO[i][0],"")}</div></div>`;
     if(mono&2) html+=`<div class="mono" style="margin-top:8px;line-height:1.8;"><b style="color:var(--accent);">· 第二段</b><div>${markText(MONO[i][1],"")}</div></div>`;
@@ -1014,7 +1014,7 @@ function checkTimeline(silent){
     unlockMono(1);                                   // 时间线 100%：解锁第一段独白
     if(!deduced[cur]&&!flawed[cur]){
       $("deductWrap").classList.remove("hidden");
-      if(!silent) toast("时间线已还原完整，进入追问阶段");
+      if(!silent) toast("时间线已还原 100% · 进入「疑点作答」门控");
     } else { $("deductWrap").classList.add("hidden"); }
   } else {
     $("deductWrap").classList.add("hidden");
@@ -1023,7 +1023,7 @@ function checkTimeline(silent){
   updateAccuseEnabled();
   save();
 }
-/* ---- 追问阶段 ---- */
+/* ---- 疑点作答（结论门控）---- */
 function renderDeduct(){
   const c=CASES[cur]; const box=$("deductQ"); if(!box){ return; }
   box.innerHTML="";
@@ -1077,12 +1077,12 @@ function updateFlawBtn(ok){
   $("flawBtn").style.display = show?"":"none";
 }
 function flawAccuse(){
-  if(!confirm("跳过追问将直接指认真凶，此案证据链存在缺口，不会被记录为完整结案。仍要继续？")) return;
+  if(!confirm("提前收网将跳过「疑点作答」，此案将以「缺憾」结案（不获得完整真相与第二段独白）。仍要继续？")) return;
   flawed[cur]=true;
   $("deductWrap").classList.add("hidden");
   $("flawBtn").style.display="none";
   updateAccuseEnabled();
-  toast("追问已跳过，可前往「指认真凶」");
+  toast("已准备提前收网 · 可前往「指认真凶」（缺憾结案）");
   save();
 }
 function updateAccuseEnabled(){
@@ -1094,7 +1094,8 @@ function renderSuspects(){
   const c=CASES[cur]; const box=$("suspects"); box.innerHTML="";
   c.suspects.forEach(s=>{
     const d=document.createElement("div"); d.className="suspect";
-    d.innerHTML=`<div><div class="sname">${esc(s.name)}</div><div class="srole">${esc(s.role)}</div></div><button class="button" onclick="accuse('${s.name}')">指认</button>`;
+    let extra = s.point ? `<div class="spoint">${esc(s.point)}</div>` : "";
+    d.innerHTML=`<div><div class="sname">${esc(s.name)}</div><div class="srole">${esc(s.role)}</div>${extra}</div><button class="button" data-name="${esc(s.name)}" onclick="accuse(this.dataset.name)">指认</button>`;
     box.appendChild(d);
   });
 }
@@ -1107,7 +1108,7 @@ function accuse(name){
     stampShow();                            // 结案印章动画
     let html;
     if(flawed[cur]){
-      html=`<h3 style="color:var(--gold)">结案 · 未竟 · ${c.title}</h3>
+      html=`<h3 style="color:var(--gold)">结案 · 缺憾收网 · ${c.title}</h3>
         <p><b>你指认了 ${esc(sus.name)}</b> —— 真凶确实是他，方向没错。</p>
         <p>但你在证据链尚未排空的缺口上提前收网了：时间线有多处未还原、疑点未逐一排除。你抓住了罪犯，却没把整条真相挖穿。此案判定为<b>「有所缺憾」</b>：<br>· 不会获得第二段当事人独白；<br>· 沉璧暗线在此处的归档不完整。</p>
         <p style="font-size:12px;color:var(--dim);">如需完整结局，可在案件菜单选择「清除并重置进度」重打本案，或以简洁方式重新回到该案补齐时间线与疑点。</p>
@@ -1230,7 +1231,7 @@ function initDrawCanvas(){
   c.onpointercancel=()=>{ dDrawing=false; saveNoteDraw(); };
 }
 function posOf(c,e){ const r=c.getBoundingClientRect(); return { x:(e.clientX-r.left)*(c.width/r.width), y:(e.clientY-r.top)*(c.height/r.height) }; }
-function drawPoint(c,x,y){ const ctx=c.getContext("2d"); ctx.strokeStyle=dErase?"#ffffff":"#ffffff"; ctx.fillStyle=dErase?"#ffffff":dPen; ctx.lineWidth=dSize+2; ctx.beginPath(); ctx.arc(x,y,(dSize+2)/2,0,Math.PI*2); ctx.fill(); }
+function drawPoint(c,x,y){ const ctx=c.getContext("2d"); ctx.strokeStyle="#ffffff"; ctx.fillStyle=dErase?"#ffffff":dPen; ctx.lineWidth=dSize+2; ctx.beginPath(); ctx.arc(x,y,(dSize+2)/2,0,Math.PI*2); ctx.fill(); }
 function lineTo(c,x0,y0,x1,y1){ const ctx=c.getContext("2d"); ctx.strokeStyle=dErase?"#ffffff":dPen; ctx.lineWidth=dSize; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); }
 function drawClear(){
   if(!confirm("清空当前绘图笔记？")) return;
@@ -1247,7 +1248,7 @@ const TUTORIAL_STEPS = [
   "<b>欢迎来到《档案：隐庐》</b>。你是连环专案组警探，将面对五桩看似独立的凶案——古董商之死、夹层藏尸、教授“自杀”、拍卖行灭口、古镇密库之殇。逐案侦破的同时，一条贯穿五部、代号「沉璧」的暗线会慢慢浮现。",
   "<b>① 阅读档案。</b>进入案件后，在左侧点击任一份档案（日记、笔录、验尸报告…），内容显示在右侧。所有推理都藏在文字里。",
   "<b>② 检索关键词。</b>在搜索框输入人名/日期/物品（如“钢笔”“停电”），点「检索并高亮」，命中的档案会标出次数并置现实，正文中黄色高亮。不知道搜什么时，点下方<b>推荐检索词</b>一键检索。",
-  "<b>③ 还原时间线。</b>顶部「时间线还原」有 8 个时间槽，为每个槽选【日期】＋【事件】。全部匹配到 100% 后，解锁该案第一段<b>当事人独白</b>，并开放指认。",
+  "<b>③ 还原时间线。</b>顶部「时间线还原」按案件时间槽排列，为每个槽选【日期】＋【事件】。全部匹配到 100% 后，解锁该案第一段<b>当事人独白</b>，并开放指认。",
   "<b>④ 指认真凶。</b>时间线满后打开「指认真凶」页，从 4 名嫌疑人中选一人。选对则结案并解锁第二段独白（可看印章动画）；选错会给出真相要点，可重回档案重试。",
   "<b>破案与工具。</b>每破一案，线索自动归档进菜单的<b>「沉璧档案」</b>。<br>· 右上<b>📒 笔记</b>：内置文本+绘图笔记本，随存档保存，边推理边记；<br>· 案情页<b>侦查提示</b>：卡关时逐条揭示（最多 3 条）；<br>· 顶栏<b>教程</b>：随时回看本说明。"
 ];
@@ -1272,6 +1273,583 @@ function hideScreens(){ ["screenStart","screenMenu","screenBrief","screenBoard",
 
 /* init：先显示启动面（继续/新游戏），按需读档 */
 initStart();
+
+/* ============================================================
+ * 自测入口：#auto=full
+ * ------------------------------------------------------------
+ * 仅当 URL 带 auto=full（如 …/index.html#auto=full）时激活；
+ * 玩家正常打开（无 hash）时，下面只是定义，不产生任何副作用：
+ * 不改存档、不改 DOM、不动既有事件绑定、不打印任何日志。
+ *
+ * 契约：
+ *  1) 全程「真实点击真实元素」：对目标节点派发 pointerdown/mousedown/
+ *     pointerup/mouseup/click 一整串真实事件（坐标为节点实际矩形中心），
+ *     派发前用 document.elementFromPoint 校验命中点确实是该元素——
+ *     命中点被遮挡（如开场教程浮层）则拒绝派发并判失败，绝不「绕过遮挡」。
+ *  2) 不写内部变量、不调用内部函数推进流程；只「只读」查 CASES/solved 等
+ *     状态来决定该点哪一个元素。
+ *     唯一的等价替代：原生 <select> 的选项不是 DOM 元素、无法被任何事件选中，
+ *     故对时间槽/疑点的下拉采用「真实点选控件本体 + 写入 value + 派发
+ *     input/change」的浏览器等价方式（与 Playwright selectOption 同构），
+ *     由游戏自己的 onchange 监听器推进流程。
+ *  3) 状态签名 = DOM 长度 + localStorage 校验和（+ 可见视图），每步记录
+ *     是否变化，最后统计「变化 N 次 / 未变 M 次」。
+ *  4) 防假通过：每步先记录前置基线（#ending 默认 display:none、
+ *     #stamp 文案恒为「已破」只能看 .go、#viewerTitle 默认占位文案、
+ *     tabAccuse 默认 disabled、deductWrap 默认 hidden、进度必须 0/5），
+ *     只有「基线 → 目标」的真实跃迁才算通过。
+ *  5) 跑完把分案结论与总分写入 localStorage["yingu_selftest_v1"]。
+ * ============================================================ */
+const AUTO_MODE = (location.hash.match(/auto=([a-z0-9]+)/i) || [])[1];
+const AUTO_KEY = "yingu_selftest_v1";
+const AUTO_START_DELAY = 1200;          // 留出「开局」截图时间
+const AUTO_LOG = [];
+const AUTO_FAIL = [];
+const AUTO_PROBES = {};
+const AUTO_SIGS = { samples: 0, changes: 0, same: 0 };
+let AUTO_TOTAL = 0;
+let AUTO_OK = 0;
+let AUTO_LAST_SIG = null;
+let AUTO_LAST_CHANGED = null;
+
+const aSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function aQ(s) { return document.querySelector(s); }
+function aQA(s) { return Array.prototype.slice.call(document.querySelectorAll(s)); }
+function aClock() {
+  const d = new Date();
+  const p = (n, w) => String(n).padStart(w || 2, "0");
+  return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds()) + "." + p(d.getMilliseconds(), 3);
+}
+/* 状态签名：DOM 长度 + localStorage 校验和 + 可见视图 + 控件态指纹
+   （纯看 DOM 长度会漏掉「加一个 hidden / 去一个 hidden」这种净零变化，
+    所以另外并入页签/面板/结论区/印章与几处计数文本） */
+function aSig() {
+  let raw = "";
+  try { raw = localStorage.getItem(SAVE_KEY) || ""; } catch (e) { raw = ""; }
+  let h = 0;
+  for (let i = 0; i < raw.length; i++) h = (h * 31 + raw.charCodeAt(i)) | 0;
+  const hash = (h >>> 0).toString(36);
+  let vis = "-";
+  try {
+    vis = aQA("main > div").filter((e) => !e.classList.contains("hidden"))
+      .map((e) => e.id).join(",") || "-";
+  } catch (e) { vis = "?"; }
+  const dom = document.body.innerHTML.length;
+  let ui = "-";
+  try {
+    const tb = aQ(".tabbtn.active");
+    const pans = ["timelinePanel", "accusePanel", "monoPanel"].map((id) => {
+      const el = document.getElementById(id);
+      return el && !el.classList.contains("hidden") ? "1" : "0";
+    }).join("");
+    const endEl = aQ("#ending");
+    const stampEl = aQ("#stamp");
+    const tx = (id) => { const e = document.getElementById(id); return e ? e.textContent.replace(/\s/g, "") : "-"; };
+    ui = (tb ? tb.id : "-") + "|" + pans
+      + "|end:" + (endEl ? (endEl.style.display === "block" ? "block" : "none") : "-")
+      + "|stamp:" + (stampEl && stampEl.classList.contains("go") ? "go" : "0")
+      + "|tl:" + tx("tlBarText") + "|ded:" + tx("deductCount") + "|prog:" + tx("progressLabel");
+  } catch (e) { ui = "?"; }
+  return { dom: dom, lsLen: raw.length, lsHash: hash, vis: vis, ui: ui,
+           s: "dom=" + dom + " ls=" + raw.length + "/" + hash + " vis=" + vis + " ui{" + ui + "}" };
+}
+function aVisibleNodes() {
+  return aQA("*").filter((e) => {
+    if (e.tagName === "SCRIPT" || e.tagName === "STYLE") return false;
+    const st = getComputedStyle(e);
+    if (st.display === "none" || st.visibility === "hidden" || st.opacity === "0") return false;
+    const r = e.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }).length;
+}
+/* 一条步骤：计数 + 记录签名变化 + 打印 */
+function aStep(phase, msg, ok, s) {
+  AUTO_TOTAL++;
+  if (ok) AUTO_OK++; else AUTO_FAIL.push(phase + "：" + msg);
+  s = s || aSig();
+  let changed = null;
+  if (AUTO_LAST_SIG !== null) {
+    changed = s.s !== AUTO_LAST_SIG;
+    if (changed) AUTO_SIGS.changes++; else AUTO_SIGS.same++;
+  }
+  AUTO_LAST_SIG = s.s; AUTO_SIGS.samples++;
+  AUTO_LAST_CHANGED = changed;
+  const line = "[auto] " + aClock() + " 阶段=" + phase + " " + msg
+    + " ok=" + (ok ? 1 : 0) + (changed === null ? " sig=首帧" : (changed ? " sig=变化" : " sig=未变"))
+    + " | " + s.s;
+  AUTO_LOG.push(line);
+  console.log(line);
+  return !!ok;
+}
+function aProbe(name, ok, note) {
+  const line = "[auto] " + aClock() + " 探测=" + name + " " + note + " ok=" + (ok ? 1 : 0) + " | " + aSig().s;
+  AUTO_LOG.push(line);
+  console.log(line);
+  AUTO_PROBES[name] = { ok: !!ok, note: note, at: new Date().toISOString() };
+  return !!ok;
+}
+function aPhaseDone(name, t0, extra) {
+  const info = Object.assign({ at: new Date().toISOString(), ms: Date.now() - t0 }, extra || {});
+  const s = aSig();
+  const line = "[auto] " + aClock() + " ---- 阶段完成：" + name + " 用时=" + info.ms
+    + "ms " + JSON.stringify(extra || {}) + " | " + s.s;
+  AUTO_LOG.push(line);
+  console.log(line);
+  return info;
+}
+/* 真实点击：命中点校验通过才派发，坐标取节点实际矩形中心 */
+async function aFire(node, settle) {
+  if (!node) return { ok: false, hit: "(元素缺失)" };
+  try { node.scrollIntoView({ block: "center", inline: "center" }); } catch (e) { /* 忽略 */ }
+  await aSleep(settle == null ? 50 : settle);
+  const r = node.getBoundingClientRect();
+  if (!r || r.width === 0 || r.height === 0) return { ok: false, hit: "(零尺寸/不可见)" };
+  const cx = Math.round(r.left + r.width / 2);
+  const cy = Math.round(r.top + r.height / 2);
+  if (cx < 0 || cy < 0 || cx > window.innerWidth || cy > window.innerHeight) {
+    return { ok: false, hit: "(中心点在视口外 " + cx + "," + cy + ")" };
+  }
+  let hitEl = null;
+  try { hitEl = document.elementFromPoint(cx, cy); } catch (e) { hitEl = null; }
+  let hitName = "(null)";
+  if (hitEl) {
+    hitName = hitEl.id ? ("#" + hitEl.id)
+      : (hitEl.tagName + (typeof hitEl.className === "string" && hitEl.className.trim()
+          ? "." + hitEl.className.trim().split(/\s+/)[0] : ""));
+  }
+  const hitOk = !!hitEl && (hitEl === node || node.contains(hitEl));
+  if (!hitOk) return { ok: false, hit: hitName, cx: cx, cy: cy };   // 被遮挡：不派发
+  const base = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy,
+                 button: 0, buttons: 0, detail: 1 };
+  const ptr = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy,
+                button: 0, buttons: 0, detail: 1, pointerId: 1, pointerType: "mouse",
+                isPrimary: true, width: 1, height: 1 };
+  try {
+    node.dispatchEvent(new PointerEvent("pointerdown", ptr));
+    node.dispatchEvent(new MouseEvent("mousedown", base));
+    node.dispatchEvent(new PointerEvent("pointerup", ptr));
+    node.dispatchEvent(new MouseEvent("mouseup", base));
+    node.dispatchEvent(new MouseEvent("click", base));
+  } catch (e) {
+    return { ok: false, hit: "(派发异常 " + (e && e.message) + ")" };
+  }
+  return { ok: true, hit: hitName, cx: cx, cy: cy };
+}
+/* 点一下并把结果记成一条步骤 */
+async function aTap(node, phase, label, opts) {
+  opts = opts || {};
+  const s0 = aSig();
+  if (!node) { aStep(phase, label + " · 元素缺失", false); return false; }
+  if (node.disabled === true && opts.needEnabled !== false) {
+    aStep(phase, label + " · 控件 disabled，真实点击不会生效", false);
+    return false;
+  }
+  const f = await aFire(node, opts.settle);
+  if (!f.ok) {
+    aStep(phase, label + " · 命中点被遮挡/不在该元素（elementFromPoint=" + f.hit + "），拒绝派发", false);
+    return false;
+  }
+  if (opts.wait) await aSleep(opts.wait);
+  const s1 = aSig();
+  let ok = true;
+  let extra = "";
+  if (typeof opts.check === "function") {
+    ok = !!opts.check();
+    if (typeof opts.checkNote === "function") extra += " " + opts.checkNote();
+  }
+  if (s1.s === s0.s) { ok = false; extra += " 〔点击后状态签名未变〕"; }
+  extra += " elementFromPoint=" + f.hit;
+  aStep(phase, label + extra, ok, s1);
+  return ok;
+}
+async function aWaitFor(fn, ms) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < (ms || 3000)) {
+    try { if (fn()) return true; } catch (e) { /* 忽略 */ }
+    await aSleep(50);
+  }
+  return false;
+}
+/* 原生 <select> 选值：真实点控件 + 写入 value + 派发 input/change（见文件头说明 2） */
+async function aPickSelect(node, idx, phase, label, checkFn, noteFn) {
+  const s0 = aSig();
+  if (!node) { aStep(phase, label + " · 下拉控件缺失", false); return false; }
+  const f = await aFire(node, 40);
+  if (!f.ok) {
+    aStep(phase, label + " · 控件命中点被遮挡（elementFromPoint=" + f.hit + "），拒绝操作", false);
+    return false;
+  }
+  node.value = String(idx);
+  try { node.dispatchEvent(new Event("input", { bubbles: true })); } catch (e) { /* 忽略 */ }
+  node.dispatchEvent(new Event("change", { bubbles: true }));
+  await aSleep(35);
+  const s1 = aSig();
+  let ok = (typeof checkFn === "function") ? !!checkFn() : true;
+  let extra = (typeof noteFn === "function") ? " " + noteFn() : "";
+  if (s1.s === s0.s) { ok = false; extra += " 〔选值后状态签名未变〕"; }
+  extra += "（真实点选控件 + change，原生下拉选项非 DOM 元素）";
+  aStep(phase, label + extra, ok, s1);
+  return ok;
+}
+function aSigStats() {
+  return { samples: AUTO_SIGS.samples, changes: AUTO_SIGS.changes, same: AUTO_SIGS.same };
+}
+
+async function runAutoFull() {
+  const t00 = Date.now();
+  const rec = {
+    hash: location.hash, startedAt: new Date().toISOString(),
+    phases: {}, cases: [], steps: {}, sig: null, probes: {}, final: null, log: AUTO_LOG
+  };
+  console.log("[auto] ===== 自测开始 #auto=full（真实点击驱动 · 只读判定数据，不改内部状态）=====");
+  await aSleep(AUTO_START_DELAY);
+  let score = 0;
+  try {
+    /* ---------------- 阶段 0：确保初始态 ---------------- */
+    let t0 = Date.now();
+    const startShown = await aWaitFor(() => {
+      const s = aQ("#screenStart");
+      return s && !s.classList.contains("hidden");
+    }, 8000);
+    aStep("初始态", "启动面已显示（#screenStart 可见）", startShown);
+    if (!startShown) throw new Error("启动面未出现，无法开始自测");
+
+    /* 开场教程（首次进入会自动弹；z-index:950 全屏遮挡，必须先真实关掉） */
+    if (!aQ("#tutorialOverlay").classList.contains("hidden")) {
+      const skip = aQ('#tutorialOverlay button[onclick="closeTutorial()"]');
+      await aTap(skip, "初始态", "关闭自动弹出的开场教程（「跳过教程，直接开始」）", {
+        wait: 120,
+        check: () => aQ("#tutorialOverlay").classList.contains("hidden")
+      });
+    } else {
+      aStep("初始态", "无开场教程浮层（该存档已记 tutorialDone）", true);
+    }
+
+    /* 回到初始态：真点「新游戏」（有旧存档时也走同一条路径 ——
+       裸跑 #auto=full 在已有存档时会硬失败，就是因为没做这一步） */
+    const contDisabled = aQ("#btnContinue") ? aQ("#btnContinue").disabled : null;
+    aStep("初始态", "启动面「继续游戏」disabled=" + contDisabled
+      + "（false＝检测到旧存档；无论有否，都真点「新游戏」回到初始态）", true);
+    const btnNew = aQ('#screenStart button[onclick="newGame()"]');
+    await aTap(btnNew, "初始态", "点击「新游戏」（会弹 confirm，需驱动侧 page.on('dialog') 接受）", { wait: 150 });
+    const toMenu = await aWaitFor(() => !aQ("#screenMenu").classList.contains("hidden"), 4000);
+    aStep("初始态", "已进入案件菜单（#screenMenu 可见）", toMenu);
+    if (!toMenu) {
+      throw new Error("点击「新游戏」后未进入案件菜单：浏览器未接受 confirm()，"
+        + "驱动侧需 page.on('dialog', d => d.accept())");
+    }
+    const prog0 = aQ("#progressLabel").textContent.replace(/\s/g, "");
+    aStep("初始态", "菜单进度「" + prog0 + "」必须为已侦破0/5（否则 solved 有残留 → 后面的结案断言会假通过）",
+      prog0 === "已侦破0/5");
+    const store0 = await storageRead();
+    /* newGame() 只清存档、不写新档，所以此处「无存档」本身就是已重置的证据 */
+    const solvedAllFalse = !store0.ok
+      || (Array.isArray(store0.data.solved) && store0.data.solved.filter(Boolean).length === 0);
+    aStep("初始态", "存档初步核对：solved 全 false（无存档 / 旧档已被真实重置）· reason="
+      + (store0.ok ? "has-save" : String(store0.reason)), solvedAllFalse);
+    rec.phases.reset = aPhaseDone("初始态", t0, {
+      hadSave: contDisabled === false, progress: prog0, solvedAllFalse: solvedAllFalse
+    });
+
+    /* ---------------- 逐案 ---------------- */
+    for (let ci = 0; ci < CASES.length; ci++) {
+      const c = CASES[ci];
+      const cid = "案" + (ci + 1);
+      const ct0 = Date.now();
+      console.log("[auto] " + aClock() + " ======== " + cid + " " + c.title + " ========");
+
+      /* (1) 菜单 → 进入侦办（该按钮只在上一案已破时才渲染，本身就是解锁证据） */
+      const tile = aQA("#caseList .casetile")[ci];
+      const enterBtn = tile ? tile.querySelector('button.button[onclick="openCase(' + ci + ')"]') : null;
+      if (!enterBtn) {
+        aStep(cid, "菜单第 " + (ci + 1) + " 案没有「进入侦办」按钮（未解锁）", false);
+        throw new Error(cid + " 在菜单中未解锁，无法进入");
+      }
+      await aTap(enterBtn, cid, "菜单 →「进入侦办」" + c.title, {
+        wait: 140, check: () => !aQ("#screenBrief").classList.contains("hidden")
+      });
+
+      /* (2) 简报 → 侦办台 */
+      await aTap(aQ('#screenBrief button[onclick="enterBoard()"]'), cid, "简报 →「进入档案 · 开始侦办」", {
+        wait: 180, check: () => !aQ("#screenBoard").classList.contains("hidden")
+      });
+      aStep(cid, "侦办台标题「" + aQ("#boardTitle").textContent + "」含本案标题",
+        aQ("#boardTitle").textContent.indexOf(c.title) >= 0);
+
+      /* (3) 读全部档案（逐份真实点击，校验查看器真正换成了该份文件） */
+      const nFiles = aQA("#docList .doc").length;
+      aStep(cid, "档案列表 " + nFiles + " 份（应为 " + c.files.length + "）", nFiles === c.files.length);
+      /* 查看器里的文案默认就有（案1是占位文案；再次进入某案时会残留上一案的档案标题），
+         所以判定标准是「点之前不能已经是本案档案 1 的标题」，而不是「有字就算成功」 */
+      aStep(cid, "查看器点前文案「" + aQ("#viewerTitle").textContent
+        + "」≠ 本案档案 1 标题（默认就有文案，不能只凭「有字」当成功）",
+        aQ("#viewerTitle").textContent !== c.files[0].title);
+      if (ci === 0) {
+        aStep(cid, "首案首次进入时查看器为占位文案「选择左侧档案开始阅读」",
+          aQ("#viewerTitle").textContent === "选择左侧档案开始阅读");
+      }
+      for (let fi = 0; fi < nFiles; fi++) {
+        const want = c.files[fi].title;
+        await aTap(aQA("#docList .doc")[fi], cid,
+          "打开档案 " + (fi + 1) + "/" + nFiles + "「" + want + "」", {
+            wait: 60,
+            check: () => aQ("#viewerTitle").textContent === want,
+            checkNote: () => "viewerTitle=「" + aQ("#viewerTitle").textContent + "」"
+          });
+      }
+
+      /* (4) 关键词检索：点推荐词（真实按钮）+ 点「检索并高亮」复核 */
+      const chips = aQA("#kwChips .chip");
+      aStep(cid, "推荐检索词 " + chips.length + " 个（应为 " + (KEYWORDS[ci] || []).length + "）",
+        chips.length === (KEYWORDS[ci] || []).length);
+      const chip = chips[0];
+      const chipTxt = chip ? chip.textContent : "(缺)";
+      await aTap(chip, cid, "点推荐检索词「" + chipTxt + "」→ 检索并高亮", {
+        wait: 90,
+        check: () => aQ("#kw").value === chipTxt && aQA("#docList .searchhit").length > 0,
+        checkNote: () => "kw=「" + aQ("#kw").value + "」命中 " + aQA("#docList .searchhit").length + " 份"
+      });
+      await aTap(aQ('#viewerHead button[onclick="clearViewer()"]'), cid, "点查看器「关闭」回到占位文案", {
+        wait: 70, check: () => aQ("#viewerTitle").textContent === "选择左侧档案开始阅读"
+      });
+      await aTap(aQ('#searchbox button[onclick="doSearch()"]'), cid, "点「检索并高亮」按钮复核（重新打开命中档案）", {
+        wait: 90,
+        check: () => aQA("#docList .searchhit").length > 0
+          && aQ("#viewerTitle").textContent !== "选择左侧档案开始阅读",
+        checkNote: () => "viewerTitle=「" + aQ("#viewerTitle").textContent + "」"
+      });
+
+      /* (5) 时间线：逐槽选日期+事件 */
+      await aTap(aQ("#tabTime"), cid, "切页签「时间线还原」", {
+        wait: 140,
+        check: () => !aQ("#timelinePanel").classList.contains("hidden")
+          && aQ("#fileListPanel").style.display === "none"
+      });
+      const nSlots = c.golden.length;
+      const bar0 = aQ("#tlBarText").textContent.replace(/\s/g, "");
+      aStep(cid, "时间线初始进度「" + bar0 + "」应为 0/" + nSlots + "（残留存档会在此暴露）",
+        bar0 === "0/" + nSlots);
+      aStep(cid, "时间槽 " + aQA("#slots .slot").length + " 个（应为 " + nSlots + "）",
+        aQA("#slots .slot").length === nSlots);
+      const preLocked = aQA("#slots .slot .st").filter((e) => /已锁定/.test(e.textContent)).length;
+      aStep(cid, "初始已锁定槽位 " + preLocked + " 个（必须为 0，不能默认就有正确文案）", preLocked === 0);
+      aStep(cid, "「疑点作答」区默认隐藏（#deductWrap hidden）",
+        aQ("#deductWrap").classList.contains("hidden"));
+      aStep(cid, "「指认真凶」页签默认 disabled（门控未绕过）", aQ("#tabAccuse").disabled === true);
+
+      for (let si = 0; si < nSlots; si++) {
+        const g = c.golden[si];
+        await aPickSelect($("TD_" + si), g.date, cid,
+          "时间槽 " + (si + 1) + "/" + nSlots + " 日期 ←「" + c.dates[g.date] + "」",
+          () => $("TD_" + si).value === String(g.date));
+        await aPickSelect($("TE_" + si), g.ev, cid,
+          "时间槽 " + (si + 1) + "/" + nSlots + " 事件 ←「" + String(c.events[g.ev]).slice(0, 18) + "…」",
+          () => $("TS_" + si).textContent.indexOf("已锁定") >= 0);
+      }
+      await aSleep(60);
+      const bar1 = aQ("#tlBarText").textContent.replace(/\s/g, "");
+      aStep(cid, "时间线还原完成「" + bar1 + "」（应为 " + nSlots + "/" + nSlots + "）",
+        bar1 === nSlots + "/" + nSlots);
+      const lockedN = aQA("#slots .slot .st").filter((e) => /已锁定/.test(e.textContent)).length;
+      aStep(cid, "已锁定槽位 " + lockedN + "/" + nSlots, lockedN === nSlots);
+
+      /* (6) 疑点作答门控 */
+      await aWaitFor(() => !aQ("#deductWrap").classList.contains("hidden"), 2000);
+      aStep(cid, "时间线 100% 后「疑点作答」区出现（hidden → 可见）",
+        !aQ("#deductWrap").classList.contains("hidden"));
+      const nDed = c.deductions.length;
+      for (let qi = 0; qi < nDed; qi++) {
+        const q = c.deductions[qi];
+        await aPickSelect(aQA("#deductQ .deduct select")[qi], q.a, cid,
+          "疑点 " + (qi + 1) + "/" + nDed + " ←「" + q.opts[q.a] + "」",
+          () => {
+            const rv = aQA("#deductQ .deduct .rv")[qi];
+            return !!rv && rv.className.indexOf("ok") >= 0;
+          });
+      }
+      await aSleep(60);
+      const dedTxt = aQ("#deductCount").textContent.replace(/\s/g, "");
+      aStep(cid, "疑点作答「" + dedTxt + "」（应为已排除" + nDed + "/" + nDed + "）",
+        dedTxt === "已排除" + nDed + "/" + nDed);
+      aStep(cid, "「指认真凶」页签已解禁（disabled=false）", aQ("#tabAccuse").disabled === false);
+      aStep(cid, "「疑点作答」区自动收起（重新 hidden）",
+        aQ("#deductWrap").classList.contains("hidden"));
+
+      /* (7) 指认真凶 —— 先记录基线，防止「默认就是答案」式假通过 */
+      await aTap(aQ("#tabAccuse"), cid, "切页签「指认真凶」", {
+        wait: 140, check: () => !aQ("#accusePanel").classList.contains("hidden")
+      });
+      const nSus = aQA("#suspects .suspect").length;
+      aStep(cid, "嫌疑人卡片 " + nSus + " 张（应为 " + c.suspects.length + "）", nSus === c.suspects.length);
+
+      const preEnding = getComputedStyle(aQ("#ending")).display;
+      const preStampGo = aQ("#stamp").classList.contains("go");
+      const preStampOp = getComputedStyle(aQ("#stamp")).opacity;
+      const preSolved = solved[ci] === true;
+      aStep(cid, "指认前基线：solved[" + ci + "]=" + preSolved + " · #ending display=" + preEnding
+        + " · #stamp.go=" + preStampGo + " · stamp opacity=" + preStampOp,
+        preSolved === false && preEnding === "none" && preStampGo === false && preStampOp === "0");
+      aStep(cid, "印章文案恒为「" + aQ("#stamp").textContent
+        + "」（默认就在 DOM 里，只能看 .go/opacity，不能看文案判成败）",
+        aQ("#stamp").textContent === "已破");
+
+      const killer = c.kill;        // 只读：案件数据里记录的真凶
+      aProbe("真凶字段", !!killer, cid + " c.kill=" + killer);
+      const susBtn = aQA("#suspects .suspect button").filter((b) => b.dataset.name === killer)[0];
+      aStep(cid, "待点按钮 = 嫌疑人「" + killer + "」的「指认」按钮",
+        !!susBtn && susBtn.textContent.trim() === "指认");
+      await aTap(susBtn, cid, "指认「" + killer + "」", {
+        settle: 120, wait: 380,
+        check: () => solved[ci] === true
+          && getComputedStyle(aQ("#ending")).display !== "none"
+          && aQ("#ending").innerHTML.indexOf("真凶锁定") >= 0,
+        checkNote: () => "#ending display=" + getComputedStyle(aQ("#ending")).display
+          + " solved[" + ci + "]=" + solved[ci]
+      });
+      const stampGo = aQ("#stamp").classList.contains("go");
+      const stampOp = getComputedStyle(aQ("#stamp")).opacity;
+      aStep(cid, "结案印章触发（#stamp.go=" + stampGo + " opacity=" + stampOp + "）",
+        stampGo === true && stampOp !== "0");
+
+      const endHtml = aQ("#ending").innerHTML;
+      aStep(cid, "结论区「结案 · 真凶锁定 · " + c.title + "」",
+        endHtml.indexOf("结案 · 真凶锁定") >= 0 && endHtml.indexOf(c.title) >= 0);
+      aStep(cid, "结论区出现真凶名「" + killer + "」", endHtml.indexOf(killer) >= 0);
+      aStep(cid, "非「缺憾收网」分支（结论区无「缺憾」字样）", endHtml.indexOf("缺憾") < 0);
+      if (ci < 4) {
+        aStep(cid, "结论区含暗线归档「" + String(c.reveal).slice(0, 16) + "…」",
+          endHtml.indexOf(String(c.reveal).slice(0, 12)) >= 0);
+      } else {
+        /* 第 5 案走「全五案侦破 · 沉璧覆灭」终局分支，不再输出 reveal 行 */
+        aStep(cid, "结论区出现终局分支「全五案侦破 · 沉璧覆灭」",
+          endHtml.indexOf("全五案侦破 · 沉璧覆灭") >= 0);
+      }
+
+      const st = await storageRead();
+      const d = (st.ok && st.data) || {};
+      const lsSolved = !!(d.solved && d.solved[ci]);
+      const lsDeduced = !!(d.deduced && d.deduced[ci]);
+      const lsFlawed = !!(d.flawed && d.flawed[ci]);
+      const lsMono2 = !!(d.mono && ((d.mono[ci] | 0) & 2));
+      aStep(cid, "存档落盘：solved[" + ci + "]=" + lsSolved + " deduced=" + lsDeduced
+        + " flawed=" + lsFlawed + " 独白第二段=" + lsMono2,
+        lsSolved && lsDeduced && !lsFlawed && lsMono2);
+
+      const ms = Date.now() - ct0;
+      const pts = (lsSolved && lsDeduced && !lsFlawed) ? 20 : (lsSolved ? 12 : 0);
+      score += pts;
+      const line = "[auto] " + aClock() + " ★ " + cid + " " + c.title
+        + " ｜指认结论=" + killer + "（真凶·正确，非缺憾）"
+        + " ｜用时=" + ms + "ms"
+        + " ｜档案 " + nFiles + "/" + nFiles
+        + " ｜时间线 " + nSlots + "/" + nSlots
+        + " ｜疑点 " + nDed + "/" + nDed
+        + " ｜得分 " + pts + "/20";
+      AUTO_LOG.push(line);
+      console.log(line);
+      rec.cases.push({
+        no: c.no, title: c.title, accused: killer, correct: lsSolved && lsDeduced && !lsFlawed,
+        flawed: lsFlawed, ms: ms, points: pts, files: nFiles, slots: nSlots, deductions: nDed,
+        mono2: lsMono2
+      });
+
+      if (ci < CASES.length - 1) {
+        /* 返回菜单（真实点击），顺便验证「已侦破 N / 5」与下一案已解锁 */
+        await aTap(aQ('#ending button.button.ghost[onclick="showMenu()"]'), cid,
+          "结论区 →「返回菜单」", {
+            settle: 700, wait: 180,
+            check: () => !aQ("#screenMenu").classList.contains("hidden")
+          });
+        const prog = aQ("#progressLabel").textContent.replace(/\s/g, "");
+        aStep(cid, "菜单进度「" + prog + "」（应为已侦破" + (ci + 1) + "/5）",
+          prog === "已侦破" + (ci + 1) + "/5");
+        const nextTile = aQA("#caseList .casetile")[ci + 1];
+        const nextBtn = nextTile ? nextTile.querySelector('button.button[onclick="openCase(' + (ci + 1) + ')"]') : null;
+        const nextLocked = nextTile ? nextTile.classList.contains("locked") : true;
+        aStep(cid, "下一案「" + CASES[ci + 1].title + "」已解锁（卡片非 locked 且有进入按钮）",
+          !!nextBtn && !nextLocked);
+      } else {
+        aStep(cid, "终局结论区仍停留在屏幕（留给「最终结案」截图）",
+          aQ("#ending").style.display === "block");
+      }
+      rec.phases["case" + (ci + 1)] = aPhaseDone(cid, ct0, {
+        accused: killer, ms: ms, points: pts
+      });
+    }
+
+    /* ---------------- 汇总 ---------------- */
+    let t0s = Date.now();
+    const stFinal = await storageRead();
+    const fd = (stFinal.ok && stFinal.data) || {};
+    const solvedN = (fd.solved || []).filter(Boolean).length;
+    const flawedN = (fd.flawed || []).filter(Boolean).length;
+    aStep("汇总", "存档 solved 计数 " + solvedN + "/5 · flawed 计数 " + flawedN,
+      solvedN === 5 && flawedN === 0);
+    const expectScore = 100;
+    aStep("汇总", "总分 " + score + "/" + expectScore + "（5 案 × 20 分，完整结案＝非缺憾）",
+      score === expectScore);
+    const sFinal = aSig();
+    rec.final = {
+      cases: CASES.length, solved: solvedN, flawed: flawedN, score: score, scoreMax: expectScore,
+      accused: rec.cases.map((x) => x.accused),
+      totalMs: Date.now() - t00,
+      steps: { total: AUTO_TOTAL, ok: AUTO_OK, failed: AUTO_FAIL.slice(0, 40) },
+      sig: aSigStats(),
+      storage: { key: SAVE_KEY, raw: (function () { try { return localStorage.getItem(SAVE_KEY) || ""; } catch (e) { return ""; } })() },
+      solvedFlags: (fd.solved || []).slice(), deducedFlags: (fd.deduced || []).slice(),
+      flawedFlags: (fd.flawed || []).slice(), monoFlags: (fd.mono || []).slice(),
+      sigFinal: sFinal.s, visibleNodes: aVisibleNodes(),
+      structureNodes: aQA("*").length
+    };
+    rec.ok = AUTO_TOTAL > 0 && AUTO_OK === AUTO_TOTAL && solvedN === 5 && score === expectScore;
+    rec.finishedAt = new Date().toISOString();
+    rec.elapsedMs = Date.now() - t00;
+    rec.steps = rec.final.steps;
+    rec.sig = rec.final.sig;
+    rec.done = rec.ok === true;
+    try { localStorage.setItem(AUTO_KEY, JSON.stringify(rec)); } catch (e) { /* 存储禁用则只留日志 */ }
+    const st2 = aStep("汇总", "完成标记已写入 localStorage[" + AUTO_KEY + "]：done=" + rec.done
+      + "（ok=" + rec.ok + "）",
+      (function () { try { const v = JSON.parse(localStorage.getItem(AUTO_KEY) || "null"); return !!(v && v.done === rec.ok); } catch (e) { return false; } })());
+    console.log("[auto] ===== 自测结束 五案 " + solvedN + "/5 · 步骤 " + AUTO_OK + "/" + AUTO_TOTAL
+      + " · 总分 " + score + "/" + expectScore
+      + " · 用时 " + rec.elapsedMs + "ms"
+      + " · 签名变化 " + AUTO_SIGS.changes + " 次 / 未变 " + AUTO_SIGS.same + " 次"
+      + " · ok=" + rec.ok + " | " + aSig().s + " =====");
+    if (!rec.ok && AUTO_FAIL.length) {
+      console.log("[auto] 失败步骤（前 10 条）：");
+      AUTO_FAIL.slice(0, 10).forEach((x) => console.log("[auto]   ✗ " + x));
+    }
+  } catch (err) {
+    rec.error = (err && err.message) || String(err);
+    rec.finishedAt = new Date().toISOString();
+    rec.steps = { total: AUTO_TOTAL, ok: AUTO_OK, failed: AUTO_FAIL.slice(0, 40) };
+    rec.sig = aSigStats();
+    rec.ok = false;
+    rec.done = false;
+    console.log("[auto] !! 异常终止：" + rec.error + " | 步骤 " + AUTO_OK + "/" + AUTO_TOTAL
+      + " | 签名变化 " + AUTO_SIGS.changes + " 次 / 未变 " + AUTO_SIGS.same + " 次 | " + aSig().s);
+    AUTO_FAIL.slice(0, 10).forEach((x) => console.log("[auto]   ✗ " + x));
+    try { localStorage.setItem(AUTO_KEY, JSON.stringify(rec)); } catch (e) { /* 忽略 */ }
+  }
+  window.__yinguAutoResult = rec;
+  return rec;
+}
+
+/* 只读调试口：不提供任何改内部状态的入口 */
+window.__yinguAuto = {
+  mode: AUTO_MODE || null,
+  sig: () => aSig().s,
+  sigStats: aSigStats,
+  visibleNodes: aVisibleNodes,
+  structureNodes: () => aQA("*").length,
+  log: () => AUTO_LOG.slice(),
+  result: () => window.__yinguAutoResult || null
+};
+
+if (AUTO_MODE) {
+  setTimeout(() => { runAutoFull(); }, 120);
+}
 </script>
 </body>
 </html>
