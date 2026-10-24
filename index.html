@@ -1273,6 +1273,583 @@ function hideScreens(){ ["screenStart","screenMenu","screenBrief","screenBoard",
 
 /* init：先显示启动面（继续/新游戏），按需读档 */
 initStart();
+
+/* ============================================================
+ * 自测入口：#auto=full
+ * ------------------------------------------------------------
+ * 仅当 URL 带 auto=full（如 …/index.html#auto=full）时激活；
+ * 玩家正常打开（无 hash）时，下面只是定义，不产生任何副作用：
+ * 不改存档、不改 DOM、不动既有事件绑定、不打印任何日志。
+ *
+ * 契约：
+ *  1) 全程「真实点击真实元素」：对目标节点派发 pointerdown/mousedown/
+ *     pointerup/mouseup/click 一整串真实事件（坐标为节点实际矩形中心），
+ *     派发前用 document.elementFromPoint 校验命中点确实是该元素——
+ *     命中点被遮挡（如开场教程浮层）则拒绝派发并判失败，绝不「绕过遮挡」。
+ *  2) 不写内部变量、不调用内部函数推进流程；只「只读」查 CASES/solved 等
+ *     状态来决定该点哪一个元素。
+ *     唯一的等价替代：原生 <select> 的选项不是 DOM 元素、无法被任何事件选中，
+ *     故对时间槽/疑点的下拉采用「真实点选控件本体 + 写入 value + 派发
+ *     input/change」的浏览器等价方式（与 Playwright selectOption 同构），
+ *     由游戏自己的 onchange 监听器推进流程。
+ *  3) 状态签名 = DOM 长度 + localStorage 校验和（+ 可见视图），每步记录
+ *     是否变化，最后统计「变化 N 次 / 未变 M 次」。
+ *  4) 防假通过：每步先记录前置基线（#ending 默认 display:none、
+ *     #stamp 文案恒为「已破」只能看 .go、#viewerTitle 默认占位文案、
+ *     tabAccuse 默认 disabled、deductWrap 默认 hidden、进度必须 0/5），
+ *     只有「基线 → 目标」的真实跃迁才算通过。
+ *  5) 跑完把分案结论与总分写入 localStorage["yingu_selftest_v1"]。
+ * ============================================================ */
+const AUTO_MODE = (location.hash.match(/auto=([a-z0-9]+)/i) || [])[1];
+const AUTO_KEY = "yingu_selftest_v1";
+const AUTO_START_DELAY = 1200;          // 留出「开局」截图时间
+const AUTO_LOG = [];
+const AUTO_FAIL = [];
+const AUTO_PROBES = {};
+const AUTO_SIGS = { samples: 0, changes: 0, same: 0 };
+let AUTO_TOTAL = 0;
+let AUTO_OK = 0;
+let AUTO_LAST_SIG = null;
+let AUTO_LAST_CHANGED = null;
+
+const aSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function aQ(s) { return document.querySelector(s); }
+function aQA(s) { return Array.prototype.slice.call(document.querySelectorAll(s)); }
+function aClock() {
+  const d = new Date();
+  const p = (n, w) => String(n).padStart(w || 2, "0");
+  return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds()) + "." + p(d.getMilliseconds(), 3);
+}
+/* 状态签名：DOM 长度 + localStorage 校验和 + 可见视图 + 控件态指纹
+   （纯看 DOM 长度会漏掉「加一个 hidden / 去一个 hidden」这种净零变化，
+    所以另外并入页签/面板/结论区/印章与几处计数文本） */
+function aSig() {
+  let raw = "";
+  try { raw = localStorage.getItem(SAVE_KEY) || ""; } catch (e) { raw = ""; }
+  let h = 0;
+  for (let i = 0; i < raw.length; i++) h = (h * 31 + raw.charCodeAt(i)) | 0;
+  const hash = (h >>> 0).toString(36);
+  let vis = "-";
+  try {
+    vis = aQA("main > div").filter((e) => !e.classList.contains("hidden"))
+      .map((e) => e.id).join(",") || "-";
+  } catch (e) { vis = "?"; }
+  const dom = document.body.innerHTML.length;
+  let ui = "-";
+  try {
+    const tb = aQ(".tabbtn.active");
+    const pans = ["timelinePanel", "accusePanel", "monoPanel"].map((id) => {
+      const el = document.getElementById(id);
+      return el && !el.classList.contains("hidden") ? "1" : "0";
+    }).join("");
+    const endEl = aQ("#ending");
+    const stampEl = aQ("#stamp");
+    const tx = (id) => { const e = document.getElementById(id); return e ? e.textContent.replace(/\s/g, "") : "-"; };
+    ui = (tb ? tb.id : "-") + "|" + pans
+      + "|end:" + (endEl ? (endEl.style.display === "block" ? "block" : "none") : "-")
+      + "|stamp:" + (stampEl && stampEl.classList.contains("go") ? "go" : "0")
+      + "|tl:" + tx("tlBarText") + "|ded:" + tx("deductCount") + "|prog:" + tx("progressLabel");
+  } catch (e) { ui = "?"; }
+  return { dom: dom, lsLen: raw.length, lsHash: hash, vis: vis, ui: ui,
+           s: "dom=" + dom + " ls=" + raw.length + "/" + hash + " vis=" + vis + " ui{" + ui + "}" };
+}
+function aVisibleNodes() {
+  return aQA("*").filter((e) => {
+    if (e.tagName === "SCRIPT" || e.tagName === "STYLE") return false;
+    const st = getComputedStyle(e);
+    if (st.display === "none" || st.visibility === "hidden" || st.opacity === "0") return false;
+    const r = e.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }).length;
+}
+/* 一条步骤：计数 + 记录签名变化 + 打印 */
+function aStep(phase, msg, ok, s) {
+  AUTO_TOTAL++;
+  if (ok) AUTO_OK++; else AUTO_FAIL.push(phase + "：" + msg);
+  s = s || aSig();
+  let changed = null;
+  if (AUTO_LAST_SIG !== null) {
+    changed = s.s !== AUTO_LAST_SIG;
+    if (changed) AUTO_SIGS.changes++; else AUTO_SIGS.same++;
+  }
+  AUTO_LAST_SIG = s.s; AUTO_SIGS.samples++;
+  AUTO_LAST_CHANGED = changed;
+  const line = "[auto] " + aClock() + " 阶段=" + phase + " " + msg
+    + " ok=" + (ok ? 1 : 0) + (changed === null ? " sig=首帧" : (changed ? " sig=变化" : " sig=未变"))
+    + " | " + s.s;
+  AUTO_LOG.push(line);
+  console.log(line);
+  return !!ok;
+}
+function aProbe(name, ok, note) {
+  const line = "[auto] " + aClock() + " 探测=" + name + " " + note + " ok=" + (ok ? 1 : 0) + " | " + aSig().s;
+  AUTO_LOG.push(line);
+  console.log(line);
+  AUTO_PROBES[name] = { ok: !!ok, note: note, at: new Date().toISOString() };
+  return !!ok;
+}
+function aPhaseDone(name, t0, extra) {
+  const info = Object.assign({ at: new Date().toISOString(), ms: Date.now() - t0 }, extra || {});
+  const s = aSig();
+  const line = "[auto] " + aClock() + " ---- 阶段完成：" + name + " 用时=" + info.ms
+    + "ms " + JSON.stringify(extra || {}) + " | " + s.s;
+  AUTO_LOG.push(line);
+  console.log(line);
+  return info;
+}
+/* 真实点击：命中点校验通过才派发，坐标取节点实际矩形中心 */
+async function aFire(node, settle) {
+  if (!node) return { ok: false, hit: "(元素缺失)" };
+  try { node.scrollIntoView({ block: "center", inline: "center" }); } catch (e) { /* 忽略 */ }
+  await aSleep(settle == null ? 50 : settle);
+  const r = node.getBoundingClientRect();
+  if (!r || r.width === 0 || r.height === 0) return { ok: false, hit: "(零尺寸/不可见)" };
+  const cx = Math.round(r.left + r.width / 2);
+  const cy = Math.round(r.top + r.height / 2);
+  if (cx < 0 || cy < 0 || cx > window.innerWidth || cy > window.innerHeight) {
+    return { ok: false, hit: "(中心点在视口外 " + cx + "," + cy + ")" };
+  }
+  let hitEl = null;
+  try { hitEl = document.elementFromPoint(cx, cy); } catch (e) { hitEl = null; }
+  let hitName = "(null)";
+  if (hitEl) {
+    hitName = hitEl.id ? ("#" + hitEl.id)
+      : (hitEl.tagName + (typeof hitEl.className === "string" && hitEl.className.trim()
+          ? "." + hitEl.className.trim().split(/\s+/)[0] : ""));
+  }
+  const hitOk = !!hitEl && (hitEl === node || node.contains(hitEl));
+  if (!hitOk) return { ok: false, hit: hitName, cx: cx, cy: cy };   // 被遮挡：不派发
+  const base = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy,
+                 button: 0, buttons: 0, detail: 1 };
+  const ptr = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy,
+                button: 0, buttons: 0, detail: 1, pointerId: 1, pointerType: "mouse",
+                isPrimary: true, width: 1, height: 1 };
+  try {
+    node.dispatchEvent(new PointerEvent("pointerdown", ptr));
+    node.dispatchEvent(new MouseEvent("mousedown", base));
+    node.dispatchEvent(new PointerEvent("pointerup", ptr));
+    node.dispatchEvent(new MouseEvent("mouseup", base));
+    node.dispatchEvent(new MouseEvent("click", base));
+  } catch (e) {
+    return { ok: false, hit: "(派发异常 " + (e && e.message) + ")" };
+  }
+  return { ok: true, hit: hitName, cx: cx, cy: cy };
+}
+/* 点一下并把结果记成一条步骤 */
+async function aTap(node, phase, label, opts) {
+  opts = opts || {};
+  const s0 = aSig();
+  if (!node) { aStep(phase, label + " · 元素缺失", false); return false; }
+  if (node.disabled === true && opts.needEnabled !== false) {
+    aStep(phase, label + " · 控件 disabled，真实点击不会生效", false);
+    return false;
+  }
+  const f = await aFire(node, opts.settle);
+  if (!f.ok) {
+    aStep(phase, label + " · 命中点被遮挡/不在该元素（elementFromPoint=" + f.hit + "），拒绝派发", false);
+    return false;
+  }
+  if (opts.wait) await aSleep(opts.wait);
+  const s1 = aSig();
+  let ok = true;
+  let extra = "";
+  if (typeof opts.check === "function") {
+    ok = !!opts.check();
+    if (typeof opts.checkNote === "function") extra += " " + opts.checkNote();
+  }
+  if (s1.s === s0.s) { ok = false; extra += " 〔点击后状态签名未变〕"; }
+  extra += " elementFromPoint=" + f.hit;
+  aStep(phase, label + extra, ok, s1);
+  return ok;
+}
+async function aWaitFor(fn, ms) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < (ms || 3000)) {
+    try { if (fn()) return true; } catch (e) { /* 忽略 */ }
+    await aSleep(50);
+  }
+  return false;
+}
+/* 原生 <select> 选值：真实点控件 + 写入 value + 派发 input/change（见文件头说明 2） */
+async function aPickSelect(node, idx, phase, label, checkFn, noteFn) {
+  const s0 = aSig();
+  if (!node) { aStep(phase, label + " · 下拉控件缺失", false); return false; }
+  const f = await aFire(node, 40);
+  if (!f.ok) {
+    aStep(phase, label + " · 控件命中点被遮挡（elementFromPoint=" + f.hit + "），拒绝操作", false);
+    return false;
+  }
+  node.value = String(idx);
+  try { node.dispatchEvent(new Event("input", { bubbles: true })); } catch (e) { /* 忽略 */ }
+  node.dispatchEvent(new Event("change", { bubbles: true }));
+  await aSleep(35);
+  const s1 = aSig();
+  let ok = (typeof checkFn === "function") ? !!checkFn() : true;
+  let extra = (typeof noteFn === "function") ? " " + noteFn() : "";
+  if (s1.s === s0.s) { ok = false; extra += " 〔选值后状态签名未变〕"; }
+  extra += "（真实点选控件 + change，原生下拉选项非 DOM 元素）";
+  aStep(phase, label + extra, ok, s1);
+  return ok;
+}
+function aSigStats() {
+  return { samples: AUTO_SIGS.samples, changes: AUTO_SIGS.changes, same: AUTO_SIGS.same };
+}
+
+async function runAutoFull() {
+  const t00 = Date.now();
+  const rec = {
+    hash: location.hash, startedAt: new Date().toISOString(),
+    phases: {}, cases: [], steps: {}, sig: null, probes: {}, final: null, log: AUTO_LOG
+  };
+  console.log("[auto] ===== 自测开始 #auto=full（真实点击驱动 · 只读判定数据，不改内部状态）=====");
+  await aSleep(AUTO_START_DELAY);
+  let score = 0;
+  try {
+    /* ---------------- 阶段 0：确保初始态 ---------------- */
+    let t0 = Date.now();
+    const startShown = await aWaitFor(() => {
+      const s = aQ("#screenStart");
+      return s && !s.classList.contains("hidden");
+    }, 8000);
+    aStep("初始态", "启动面已显示（#screenStart 可见）", startShown);
+    if (!startShown) throw new Error("启动面未出现，无法开始自测");
+
+    /* 开场教程（首次进入会自动弹；z-index:950 全屏遮挡，必须先真实关掉） */
+    if (!aQ("#tutorialOverlay").classList.contains("hidden")) {
+      const skip = aQ('#tutorialOverlay button[onclick="closeTutorial()"]');
+      await aTap(skip, "初始态", "关闭自动弹出的开场教程（「跳过教程，直接开始」）", {
+        wait: 120,
+        check: () => aQ("#tutorialOverlay").classList.contains("hidden")
+      });
+    } else {
+      aStep("初始态", "无开场教程浮层（该存档已记 tutorialDone）", true);
+    }
+
+    /* 回到初始态：真点「新游戏」（有旧存档时也走同一条路径 ——
+       裸跑 #auto=full 在已有存档时会硬失败，就是因为没做这一步） */
+    const contDisabled = aQ("#btnContinue") ? aQ("#btnContinue").disabled : null;
+    aStep("初始态", "启动面「继续游戏」disabled=" + contDisabled
+      + "（false＝检测到旧存档；无论有否，都真点「新游戏」回到初始态）", true);
+    const btnNew = aQ('#screenStart button[onclick="newGame()"]');
+    await aTap(btnNew, "初始态", "点击「新游戏」（会弹 confirm，需驱动侧 page.on('dialog') 接受）", { wait: 150 });
+    const toMenu = await aWaitFor(() => !aQ("#screenMenu").classList.contains("hidden"), 4000);
+    aStep("初始态", "已进入案件菜单（#screenMenu 可见）", toMenu);
+    if (!toMenu) {
+      throw new Error("点击「新游戏」后未进入案件菜单：浏览器未接受 confirm()，"
+        + "驱动侧需 page.on('dialog', d => d.accept())");
+    }
+    const prog0 = aQ("#progressLabel").textContent.replace(/\s/g, "");
+    aStep("初始态", "菜单进度「" + prog0 + "」必须为已侦破0/5（否则 solved 有残留 → 后面的结案断言会假通过）",
+      prog0 === "已侦破0/5");
+    const store0 = await storageRead();
+    /* newGame() 只清存档、不写新档，所以此处「无存档」本身就是已重置的证据 */
+    const solvedAllFalse = !store0.ok
+      || (Array.isArray(store0.data.solved) && store0.data.solved.filter(Boolean).length === 0);
+    aStep("初始态", "存档初步核对：solved 全 false（无存档 / 旧档已被真实重置）· reason="
+      + (store0.ok ? "has-save" : String(store0.reason)), solvedAllFalse);
+    rec.phases.reset = aPhaseDone("初始态", t0, {
+      hadSave: contDisabled === false, progress: prog0, solvedAllFalse: solvedAllFalse
+    });
+
+    /* ---------------- 逐案 ---------------- */
+    for (let ci = 0; ci < CASES.length; ci++) {
+      const c = CASES[ci];
+      const cid = "案" + (ci + 1);
+      const ct0 = Date.now();
+      console.log("[auto] " + aClock() + " ======== " + cid + " " + c.title + " ========");
+
+      /* (1) 菜单 → 进入侦办（该按钮只在上一案已破时才渲染，本身就是解锁证据） */
+      const tile = aQA("#caseList .casetile")[ci];
+      const enterBtn = tile ? tile.querySelector('button.button[onclick="openCase(' + ci + ')"]') : null;
+      if (!enterBtn) {
+        aStep(cid, "菜单第 " + (ci + 1) + " 案没有「进入侦办」按钮（未解锁）", false);
+        throw new Error(cid + " 在菜单中未解锁，无法进入");
+      }
+      await aTap(enterBtn, cid, "菜单 →「进入侦办」" + c.title, {
+        wait: 140, check: () => !aQ("#screenBrief").classList.contains("hidden")
+      });
+
+      /* (2) 简报 → 侦办台 */
+      await aTap(aQ('#screenBrief button[onclick="enterBoard()"]'), cid, "简报 →「进入档案 · 开始侦办」", {
+        wait: 180, check: () => !aQ("#screenBoard").classList.contains("hidden")
+      });
+      aStep(cid, "侦办台标题「" + aQ("#boardTitle").textContent + "」含本案标题",
+        aQ("#boardTitle").textContent.indexOf(c.title) >= 0);
+
+      /* (3) 读全部档案（逐份真实点击，校验查看器真正换成了该份文件） */
+      const nFiles = aQA("#docList .doc").length;
+      aStep(cid, "档案列表 " + nFiles + " 份（应为 " + c.files.length + "）", nFiles === c.files.length);
+      /* 查看器里的文案默认就有（案1是占位文案；再次进入某案时会残留上一案的档案标题），
+         所以判定标准是「点之前不能已经是本案档案 1 的标题」，而不是「有字就算成功」 */
+      aStep(cid, "查看器点前文案「" + aQ("#viewerTitle").textContent
+        + "」≠ 本案档案 1 标题（默认就有文案，不能只凭「有字」当成功）",
+        aQ("#viewerTitle").textContent !== c.files[0].title);
+      if (ci === 0) {
+        aStep(cid, "首案首次进入时查看器为占位文案「选择左侧档案开始阅读」",
+          aQ("#viewerTitle").textContent === "选择左侧档案开始阅读");
+      }
+      for (let fi = 0; fi < nFiles; fi++) {
+        const want = c.files[fi].title;
+        await aTap(aQA("#docList .doc")[fi], cid,
+          "打开档案 " + (fi + 1) + "/" + nFiles + "「" + want + "」", {
+            wait: 60,
+            check: () => aQ("#viewerTitle").textContent === want,
+            checkNote: () => "viewerTitle=「" + aQ("#viewerTitle").textContent + "」"
+          });
+      }
+
+      /* (4) 关键词检索：点推荐词（真实按钮）+ 点「检索并高亮」复核 */
+      const chips = aQA("#kwChips .chip");
+      aStep(cid, "推荐检索词 " + chips.length + " 个（应为 " + (KEYWORDS[ci] || []).length + "）",
+        chips.length === (KEYWORDS[ci] || []).length);
+      const chip = chips[0];
+      const chipTxt = chip ? chip.textContent : "(缺)";
+      await aTap(chip, cid, "点推荐检索词「" + chipTxt + "」→ 检索并高亮", {
+        wait: 90,
+        check: () => aQ("#kw").value === chipTxt && aQA("#docList .searchhit").length > 0,
+        checkNote: () => "kw=「" + aQ("#kw").value + "」命中 " + aQA("#docList .searchhit").length + " 份"
+      });
+      await aTap(aQ('#viewerHead button[onclick="clearViewer()"]'), cid, "点查看器「关闭」回到占位文案", {
+        wait: 70, check: () => aQ("#viewerTitle").textContent === "选择左侧档案开始阅读"
+      });
+      await aTap(aQ('#searchbox button[onclick="doSearch()"]'), cid, "点「检索并高亮」按钮复核（重新打开命中档案）", {
+        wait: 90,
+        check: () => aQA("#docList .searchhit").length > 0
+          && aQ("#viewerTitle").textContent !== "选择左侧档案开始阅读",
+        checkNote: () => "viewerTitle=「" + aQ("#viewerTitle").textContent + "」"
+      });
+
+      /* (5) 时间线：逐槽选日期+事件 */
+      await aTap(aQ("#tabTime"), cid, "切页签「时间线还原」", {
+        wait: 140,
+        check: () => !aQ("#timelinePanel").classList.contains("hidden")
+          && aQ("#fileListPanel").style.display === "none"
+      });
+      const nSlots = c.golden.length;
+      const bar0 = aQ("#tlBarText").textContent.replace(/\s/g, "");
+      aStep(cid, "时间线初始进度「" + bar0 + "」应为 0/" + nSlots + "（残留存档会在此暴露）",
+        bar0 === "0/" + nSlots);
+      aStep(cid, "时间槽 " + aQA("#slots .slot").length + " 个（应为 " + nSlots + "）",
+        aQA("#slots .slot").length === nSlots);
+      const preLocked = aQA("#slots .slot .st").filter((e) => /已锁定/.test(e.textContent)).length;
+      aStep(cid, "初始已锁定槽位 " + preLocked + " 个（必须为 0，不能默认就有正确文案）", preLocked === 0);
+      aStep(cid, "「疑点作答」区默认隐藏（#deductWrap hidden）",
+        aQ("#deductWrap").classList.contains("hidden"));
+      aStep(cid, "「指认真凶」页签默认 disabled（门控未绕过）", aQ("#tabAccuse").disabled === true);
+
+      for (let si = 0; si < nSlots; si++) {
+        const g = c.golden[si];
+        await aPickSelect($("TD_" + si), g.date, cid,
+          "时间槽 " + (si + 1) + "/" + nSlots + " 日期 ←「" + c.dates[g.date] + "」",
+          () => $("TD_" + si).value === String(g.date));
+        await aPickSelect($("TE_" + si), g.ev, cid,
+          "时间槽 " + (si + 1) + "/" + nSlots + " 事件 ←「" + String(c.events[g.ev]).slice(0, 18) + "…」",
+          () => $("TS_" + si).textContent.indexOf("已锁定") >= 0);
+      }
+      await aSleep(60);
+      const bar1 = aQ("#tlBarText").textContent.replace(/\s/g, "");
+      aStep(cid, "时间线还原完成「" + bar1 + "」（应为 " + nSlots + "/" + nSlots + "）",
+        bar1 === nSlots + "/" + nSlots);
+      const lockedN = aQA("#slots .slot .st").filter((e) => /已锁定/.test(e.textContent)).length;
+      aStep(cid, "已锁定槽位 " + lockedN + "/" + nSlots, lockedN === nSlots);
+
+      /* (6) 疑点作答门控 */
+      await aWaitFor(() => !aQ("#deductWrap").classList.contains("hidden"), 2000);
+      aStep(cid, "时间线 100% 后「疑点作答」区出现（hidden → 可见）",
+        !aQ("#deductWrap").classList.contains("hidden"));
+      const nDed = c.deductions.length;
+      for (let qi = 0; qi < nDed; qi++) {
+        const q = c.deductions[qi];
+        await aPickSelect(aQA("#deductQ .deduct select")[qi], q.a, cid,
+          "疑点 " + (qi + 1) + "/" + nDed + " ←「" + q.opts[q.a] + "」",
+          () => {
+            const rv = aQA("#deductQ .deduct .rv")[qi];
+            return !!rv && rv.className.indexOf("ok") >= 0;
+          });
+      }
+      await aSleep(60);
+      const dedTxt = aQ("#deductCount").textContent.replace(/\s/g, "");
+      aStep(cid, "疑点作答「" + dedTxt + "」（应为已排除" + nDed + "/" + nDed + "）",
+        dedTxt === "已排除" + nDed + "/" + nDed);
+      aStep(cid, "「指认真凶」页签已解禁（disabled=false）", aQ("#tabAccuse").disabled === false);
+      aStep(cid, "「疑点作答」区自动收起（重新 hidden）",
+        aQ("#deductWrap").classList.contains("hidden"));
+
+      /* (7) 指认真凶 —— 先记录基线，防止「默认就是答案」式假通过 */
+      await aTap(aQ("#tabAccuse"), cid, "切页签「指认真凶」", {
+        wait: 140, check: () => !aQ("#accusePanel").classList.contains("hidden")
+      });
+      const nSus = aQA("#suspects .suspect").length;
+      aStep(cid, "嫌疑人卡片 " + nSus + " 张（应为 " + c.suspects.length + "）", nSus === c.suspects.length);
+
+      const preEnding = getComputedStyle(aQ("#ending")).display;
+      const preStampGo = aQ("#stamp").classList.contains("go");
+      const preStampOp = getComputedStyle(aQ("#stamp")).opacity;
+      const preSolved = solved[ci] === true;
+      aStep(cid, "指认前基线：solved[" + ci + "]=" + preSolved + " · #ending display=" + preEnding
+        + " · #stamp.go=" + preStampGo + " · stamp opacity=" + preStampOp,
+        preSolved === false && preEnding === "none" && preStampGo === false && preStampOp === "0");
+      aStep(cid, "印章文案恒为「" + aQ("#stamp").textContent
+        + "」（默认就在 DOM 里，只能看 .go/opacity，不能看文案判成败）",
+        aQ("#stamp").textContent === "已破");
+
+      const killer = c.kill;        // 只读：案件数据里记录的真凶
+      aProbe("真凶字段", !!killer, cid + " c.kill=" + killer);
+      const susBtn = aQA("#suspects .suspect button").filter((b) => b.dataset.name === killer)[0];
+      aStep(cid, "待点按钮 = 嫌疑人「" + killer + "」的「指认」按钮",
+        !!susBtn && susBtn.textContent.trim() === "指认");
+      await aTap(susBtn, cid, "指认「" + killer + "」", {
+        settle: 120, wait: 380,
+        check: () => solved[ci] === true
+          && getComputedStyle(aQ("#ending")).display !== "none"
+          && aQ("#ending").innerHTML.indexOf("真凶锁定") >= 0,
+        checkNote: () => "#ending display=" + getComputedStyle(aQ("#ending")).display
+          + " solved[" + ci + "]=" + solved[ci]
+      });
+      const stampGo = aQ("#stamp").classList.contains("go");
+      const stampOp = getComputedStyle(aQ("#stamp")).opacity;
+      aStep(cid, "结案印章触发（#stamp.go=" + stampGo + " opacity=" + stampOp + "）",
+        stampGo === true && stampOp !== "0");
+
+      const endHtml = aQ("#ending").innerHTML;
+      aStep(cid, "结论区「结案 · 真凶锁定 · " + c.title + "」",
+        endHtml.indexOf("结案 · 真凶锁定") >= 0 && endHtml.indexOf(c.title) >= 0);
+      aStep(cid, "结论区出现真凶名「" + killer + "」", endHtml.indexOf(killer) >= 0);
+      aStep(cid, "非「缺憾收网」分支（结论区无「缺憾」字样）", endHtml.indexOf("缺憾") < 0);
+      if (ci < 4) {
+        aStep(cid, "结论区含暗线归档「" + String(c.reveal).slice(0, 16) + "…」",
+          endHtml.indexOf(String(c.reveal).slice(0, 12)) >= 0);
+      } else {
+        /* 第 5 案走「全五案侦破 · 沉璧覆灭」终局分支，不再输出 reveal 行 */
+        aStep(cid, "结论区出现终局分支「全五案侦破 · 沉璧覆灭」",
+          endHtml.indexOf("全五案侦破 · 沉璧覆灭") >= 0);
+      }
+
+      const st = await storageRead();
+      const d = (st.ok && st.data) || {};
+      const lsSolved = !!(d.solved && d.solved[ci]);
+      const lsDeduced = !!(d.deduced && d.deduced[ci]);
+      const lsFlawed = !!(d.flawed && d.flawed[ci]);
+      const lsMono2 = !!(d.mono && ((d.mono[ci] | 0) & 2));
+      aStep(cid, "存档落盘：solved[" + ci + "]=" + lsSolved + " deduced=" + lsDeduced
+        + " flawed=" + lsFlawed + " 独白第二段=" + lsMono2,
+        lsSolved && lsDeduced && !lsFlawed && lsMono2);
+
+      const ms = Date.now() - ct0;
+      const pts = (lsSolved && lsDeduced && !lsFlawed) ? 20 : (lsSolved ? 12 : 0);
+      score += pts;
+      const line = "[auto] " + aClock() + " ★ " + cid + " " + c.title
+        + " ｜指认结论=" + killer + "（真凶·正确，非缺憾）"
+        + " ｜用时=" + ms + "ms"
+        + " ｜档案 " + nFiles + "/" + nFiles
+        + " ｜时间线 " + nSlots + "/" + nSlots
+        + " ｜疑点 " + nDed + "/" + nDed
+        + " ｜得分 " + pts + "/20";
+      AUTO_LOG.push(line);
+      console.log(line);
+      rec.cases.push({
+        no: c.no, title: c.title, accused: killer, correct: lsSolved && lsDeduced && !lsFlawed,
+        flawed: lsFlawed, ms: ms, points: pts, files: nFiles, slots: nSlots, deductions: nDed,
+        mono2: lsMono2
+      });
+
+      if (ci < CASES.length - 1) {
+        /* 返回菜单（真实点击），顺便验证「已侦破 N / 5」与下一案已解锁 */
+        await aTap(aQ('#ending button.button.ghost[onclick="showMenu()"]'), cid,
+          "结论区 →「返回菜单」", {
+            settle: 700, wait: 180,
+            check: () => !aQ("#screenMenu").classList.contains("hidden")
+          });
+        const prog = aQ("#progressLabel").textContent.replace(/\s/g, "");
+        aStep(cid, "菜单进度「" + prog + "」（应为已侦破" + (ci + 1) + "/5）",
+          prog === "已侦破" + (ci + 1) + "/5");
+        const nextTile = aQA("#caseList .casetile")[ci + 1];
+        const nextBtn = nextTile ? nextTile.querySelector('button.button[onclick="openCase(' + (ci + 1) + ')"]') : null;
+        const nextLocked = nextTile ? nextTile.classList.contains("locked") : true;
+        aStep(cid, "下一案「" + CASES[ci + 1].title + "」已解锁（卡片非 locked 且有进入按钮）",
+          !!nextBtn && !nextLocked);
+      } else {
+        aStep(cid, "终局结论区仍停留在屏幕（留给「最终结案」截图）",
+          aQ("#ending").style.display === "block");
+      }
+      rec.phases["case" + (ci + 1)] = aPhaseDone(cid, ct0, {
+        accused: killer, ms: ms, points: pts
+      });
+    }
+
+    /* ---------------- 汇总 ---------------- */
+    let t0s = Date.now();
+    const stFinal = await storageRead();
+    const fd = (stFinal.ok && stFinal.data) || {};
+    const solvedN = (fd.solved || []).filter(Boolean).length;
+    const flawedN = (fd.flawed || []).filter(Boolean).length;
+    aStep("汇总", "存档 solved 计数 " + solvedN + "/5 · flawed 计数 " + flawedN,
+      solvedN === 5 && flawedN === 0);
+    const expectScore = 100;
+    aStep("汇总", "总分 " + score + "/" + expectScore + "（5 案 × 20 分，完整结案＝非缺憾）",
+      score === expectScore);
+    const sFinal = aSig();
+    rec.final = {
+      cases: CASES.length, solved: solvedN, flawed: flawedN, score: score, scoreMax: expectScore,
+      accused: rec.cases.map((x) => x.accused),
+      totalMs: Date.now() - t00,
+      steps: { total: AUTO_TOTAL, ok: AUTO_OK, failed: AUTO_FAIL.slice(0, 40) },
+      sig: aSigStats(),
+      storage: { key: SAVE_KEY, raw: (function () { try { return localStorage.getItem(SAVE_KEY) || ""; } catch (e) { return ""; } })() },
+      solvedFlags: (fd.solved || []).slice(), deducedFlags: (fd.deduced || []).slice(),
+      flawedFlags: (fd.flawed || []).slice(), monoFlags: (fd.mono || []).slice(),
+      sigFinal: sFinal.s, visibleNodes: aVisibleNodes(),
+      structureNodes: aQA("*").length
+    };
+    rec.ok = AUTO_TOTAL > 0 && AUTO_OK === AUTO_TOTAL && solvedN === 5 && score === expectScore;
+    rec.finishedAt = new Date().toISOString();
+    rec.elapsedMs = Date.now() - t00;
+    rec.steps = rec.final.steps;
+    rec.sig = rec.final.sig;
+    rec.done = rec.ok === true;
+    try { localStorage.setItem(AUTO_KEY, JSON.stringify(rec)); } catch (e) { /* 存储禁用则只留日志 */ }
+    const st2 = aStep("汇总", "完成标记已写入 localStorage[" + AUTO_KEY + "]：done=" + rec.done
+      + "（ok=" + rec.ok + "）",
+      (function () { try { const v = JSON.parse(localStorage.getItem(AUTO_KEY) || "null"); return !!(v && v.done === rec.ok); } catch (e) { return false; } })());
+    console.log("[auto] ===== 自测结束 五案 " + solvedN + "/5 · 步骤 " + AUTO_OK + "/" + AUTO_TOTAL
+      + " · 总分 " + score + "/" + expectScore
+      + " · 用时 " + rec.elapsedMs + "ms"
+      + " · 签名变化 " + AUTO_SIGS.changes + " 次 / 未变 " + AUTO_SIGS.same + " 次"
+      + " · ok=" + rec.ok + " | " + aSig().s + " =====");
+    if (!rec.ok && AUTO_FAIL.length) {
+      console.log("[auto] 失败步骤（前 10 条）：");
+      AUTO_FAIL.slice(0, 10).forEach((x) => console.log("[auto]   ✗ " + x));
+    }
+  } catch (err) {
+    rec.error = (err && err.message) || String(err);
+    rec.finishedAt = new Date().toISOString();
+    rec.steps = { total: AUTO_TOTAL, ok: AUTO_OK, failed: AUTO_FAIL.slice(0, 40) };
+    rec.sig = aSigStats();
+    rec.ok = false;
+    rec.done = false;
+    console.log("[auto] !! 异常终止：" + rec.error + " | 步骤 " + AUTO_OK + "/" + AUTO_TOTAL
+      + " | 签名变化 " + AUTO_SIGS.changes + " 次 / 未变 " + AUTO_SIGS.same + " 次 | " + aSig().s);
+    AUTO_FAIL.slice(0, 10).forEach((x) => console.log("[auto]   ✗ " + x));
+    try { localStorage.setItem(AUTO_KEY, JSON.stringify(rec)); } catch (e) { /* 忽略 */ }
+  }
+  window.__yinguAutoResult = rec;
+  return rec;
+}
+
+/* 只读调试口：不提供任何改内部状态的入口 */
+window.__yinguAuto = {
+  mode: AUTO_MODE || null,
+  sig: () => aSig().s,
+  sigStats: aSigStats,
+  visibleNodes: aVisibleNodes,
+  structureNodes: () => aQA("*").length,
+  log: () => AUTO_LOG.slice(),
+  result: () => window.__yinguAutoResult || null
+};
+
+if (AUTO_MODE) {
+  setTimeout(() => { runAutoFull(); }, 120);
+}
 </script>
 </body>
 </html>
